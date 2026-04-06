@@ -24,6 +24,21 @@ from utils.utils_tampon import (
 
 from utils.utils_action_rediger_acte import rediger_acte_juridique
 
+
+# Style des boutons (taille augmentée)
+BUTTON_STYLE = {
+    'font_weight': 'bold',
+    'padding': '10px 16px',
+    'min_width': '140px'
+}
+
+def style_button(btn, custom_style=None):
+    """Applique un style uniforme aux boutons"""
+    style = custom_style or BUTTON_STYLE
+    for key, value in style.items():
+        setattr(btn, key, value)
+    return btn
+
 # ============================================
 # WIDGETS TAMPON AVEC CONFIG YAML
 # ============================================
@@ -62,8 +77,8 @@ def creer_widgets_tampon_config():
         layout={'width': '200px'}
     )
     
-    btn_sauvegarder = Button(description="💾 Sauvegarder config", button_style='primary')
-    btn_tamponner = Button(description="🖊️ Tamponner", button_style='warning')
+    btn_sauvegarder = style_button(Button(description="💾 Sauvegarder config", button_style='primary'))
+    btn_tamponner = style_button(Button(description="🖊️ Tamponner", button_style='warning'))
     
     # Aperçu du tampon
     apercu = HTML("")
@@ -331,11 +346,11 @@ def creer_interface(llm_client):
         layout={'width': '300px'}
     )
 
-    btn_rediger_acte = Button(
+    btn_rediger_acte = style_button(Button(
         description="📜 Rédiger un acte juridique",
         button_style='primary',
         tooltip="Génère un acte juridique structuré selon le plan standard"
-    )
+    ))
 
     def on_rediger_acte(b):
         texte = get_texte()
@@ -393,32 +408,32 @@ def creer_interface(llm_client):
         layout={'width': '100%', 'height': '150px'}
     )
     
-    btn_analyser = Button(description="🔍 Analyser", button_style='primary')
-    btn_conclusions = Button(description="⚖️ Conclusions", button_style='primary')
-    btn_ameliorer = Button(description="✨ Améliorer", button_style='primary')
-    btn_email = Button(description="📧 Email", button_style='info')
+    btn_analyser = style_button(Button(description="🔍 Analyser", button_style='primary'))
+    btn_conclusions = style_button(Button(description="⚖️ Conclusions", button_style='primary'))
+    btn_ameliorer = style_button(Button(description="✨ Améliorer", button_style='primary'))
+    btn_email = style_button(Button(description="📧 Email", button_style='info'))
     # ========== AJOUT : Bouton Dalloz manuel ==========
-    btn_dalloz = Button(
+    btn_dalloz = style_button(Button(
                         description="🔍 Dalloz", 
                         button_style='info',
                         tooltip="Rechercher le texte chargé sur Lefebvre Dalloz"
-                    )
+                    ))
     # ========== AJOUT : Bouton pour rechercher le résultat généré ==========
-    btn_dalloz_resultat = Button(
+    btn_dalloz_resultat = style_button(Button(
                                 description="🔍 Chercher l'analyse sur Dalloz", 
                                 button_style='info',
                                 layout={'width': 'auto'}
-                            )
-    btn_sauvegarder = Button(description="💾 Sauvegarder résultat", button_style='success')
-    btn_sauvegarder_tout = Button(description="📦 Sauvegarder tout", button_style='warning')
-    btn_effacer = Button(description="🗑️ Effacer", button_style='danger')
+                            ))
+    btn_sauvegarder = style_button(Button(description="💾 Sauvegarder résultat", button_style='success'))
+    btn_sauvegarder_tout = style_button(Button(description="📦 Sauvegarder tout", button_style='warning'))
+    btn_effacer = style_button(Button(description="🗑️ Effacer", button_style='danger'))
     
     # Bouton unique qui détecte automatiquement le type de source
-    btn_tamponner = Button(
+    btn_tamponner = style_button(Button(
                 description="🖊️ Tamponner le document",
                 button_style='warning',
                 tooltip="Applique le tampon (conserve le format PDF/Word/TXT)"
-            )
+            ))
 
     output = Output()
     
@@ -622,8 +637,8 @@ def creer_interface(llm_client):
     btn_dalloz_resultat.on_click(on_dalloz_resultat)
 
     # Ajouter sous la barre d'outils principale
-    display(HTML("<br>"))
-    display(HBox([btn_dalloz_resultat]))
+    # display(HTML("<br>"))
+    # display(HBox([btn_dalloz_resultat]))
     # =================================================    
 
     btn_dalloz.on_click(on_dalloz_manuel)
@@ -817,8 +832,26 @@ def creer_interface(llm_client):
     display(HTML("<br>"))
 
     # Barre d'outils principale
-    display(HBox([btn_analyser, btn_conclusions, btn_ameliorer, btn_email, btn_dalloz]))
-    display(HBox([btn_sauvegarder, btn_sauvegarder_tout, btn_effacer]))
+    # display(HBox([btn_analyser, btn_conclusions, btn_ameliorer, btn_email, btn_dalloz]))
+    # display(HBox([btn_sauvegarder, btn_sauvegarder_tout, btn_effacer]))
+        # ========== SECTION 1 : ANALYSE & RÉDACTION ==========
+    display(HTML("<h3 style='margin-top:15px; margin-bottom:5px;'>📊 Analyse & Rédaction</h3>"))
+    display(HBox([btn_analyser, btn_conclusions, btn_ameliorer, btn_rediger_acte]))
+    display(HTML("<br>"))
+    
+    # ========== SECTION 2 : COMMUNICATION ==========
+    display(HTML("<h3 style='margin-top:5px; margin-bottom:5px;'>📧 Communication</h3>"))
+    display(HBox([btn_email, btn_dalloz]))
+    display(HTML("<br>"))
+    
+    # ========== SECTION 3 : DOCUMENTS ==========
+    display(HTML("<h3 style='margin-top:5px; margin-bottom:5px;'>📁 Gestion des documents</h3>"))
+    display(HBox([btn_tamponner, btn_sauvegarder, btn_sauvegarder_tout]))
+    display(HTML("<br>"))
+    
+    # ========== SECTION 4 : UTILITAIRES ==========
+    display(HTML("<h3 style='margin-top:5px; margin-bottom:5px;'>🛠️ Utilitaires</h3>"))
+    display(HBox([btn_effacer]))
     
     display(HTML("<br><hr>"))
     display(HTML("<h3>📋 RÉSULTAT</h3>"))
