@@ -804,54 +804,101 @@ def creer_interface(llm_client):
     display(HTML("<h1 style='color:#1a73e8'>🤖 Assistant Juridique IA</h1>"))
     display(HTML("<hr>"))
     
-    display(HTML("<h3>🔑 Statut des clés API</h3>"))
-    display(status_html)
-    display(HTML("<br>"))
+    # display(HTML("<h3>🔑 Statut des clés API</h3>"))
+    # display(status_html)
+    # display(HTML("<br>"))
     
-    display(HTML("<h3>🎛️ Modèle IA</h3>"))
-    display(modele_selector)
-    display(modele_info)
-    display(HTML("<br>"))
-    
-    display(HTML("<h3>📎 Fichier</h3>"))
-    display(label_depot)
-    display(uploader)
-    display(status_fichier)
-    display(HTML("<br>"))
-    display(label_drive)
-    display(input_chemin)
+    # display(HTML("<h3>🎛️ Modèle IA</h3>"))
+    # display(modele_selector)
+    # display(modele_info)
+    # display(HTML("<br>"))
+
+# Configuration sur une ligne
+    # display(HTML("<h3>⚙️ Configuration</h3>"))
+    # display(HBox([
+    #     VBox([HTML("<b>🔑 Clés</b>"), status_html]),
+    #     VBox([HTML("<b>🤖 Modèle</b>"), modele_selector]),
+    #     VBox([HTML("<b>ℹ️ Info</b>"), modele_info])
+    # ]))
+    # display(HTML("<h3>📎 Fichier</h3>"))
+    # display(label_depot)
+    # display(uploader)
+    # display(status_fichier)
+    # display(HTML("<br>"))
+    # display(label_drive)
+    # display(input_chemin)
        
-    display(HTML("<br><hr>"))
-    display(HTML("<h3>✏️ Saisie directe</h3>"))
-    display(label_manuel)
-    display(input_texte)
+
     
-    # ========== SECTION RÉDACTION D'ACTES ==========
-    display(HTML("<h3>📜 Rédaction d'actes juridiques</h3>"))
-    display(HBox([type_acte_selector, btn_rediger_acte]))
-    display(HTML("<br>"))
+    # # ========== SECTION RÉDACTION D'ACTES ==========
+    # display(HTML("<h3>📜 Rédaction d'actes juridiques</h3>"))
+    # display(HBox([type_acte_selector, btn_rediger_acte]))
+    # display(HTML("<br>"))
+
+    # # Configuration sur une ligne
+    # display(HTML("<h3>⚙️ Configuration</h3>"))
+    # display(HBox([
+    #     VBox([HTML("<b>🔑 Clés</b>"), status_html]),
+    #     VBox([HTML("<b>🤖 Modèle</b>"), modele_selector]),
+    #     VBox([HTML("<b>ℹ️ Info</b>"), modele_info])
+    # ]))
+    display(VBox([
+        HBox([
+            HTML("<b>🔑 Clés</b>", layout={'width': '33%'}),
+            HTML("<b>🤖 Modèle</b>", layout={'width': '33%'}),
+            HTML("<b>ℹ️ Info</b>", layout={'width': '34%'})
+        ]),
+        HBox([
+            VBox([status_html], layout={'width': '33%'}),
+            VBox([modele_selector], layout={'width': '33%'}),
+            VBox([modele_info], layout={'width': '34%'})
+        ])
+    ]))
+    
+    # Sources sur une ligne
+    display(HTML("<h3>📁 Sources</h3>"))
+    display(HBox([
+        VBox([HTML("<b>📎 Fichier</b>"), uploader, status_fichier], layout={'width': '20%'}),
+        VBox([HTML("<b>📁 Drive</b>"), input_chemin], layout={'width': '20%'}),
+        VBox([HTML("<b>✏️ Texte</b>"), input_texte], layout={'width': '60%'})
+    ]))
+
+
+    # display(HTML("<br><hr>"))
+    # display(HTML("<h3>✏️ Saisie directe</h3>"))
+    # display(label_manuel)
+    # display(input_texte)
 
     # Barre d'outils principale
     # display(HBox([btn_analyser, btn_conclusions, btn_ameliorer, btn_email, btn_dalloz]))
     # display(HBox([btn_sauvegarder, btn_sauvegarder_tout, btn_effacer]))
-        # ========== SECTION 1 : ANALYSE & RÉDACTION ==========
-    display(HTML("<h3 style='margin-top:15px; margin-bottom:5px;'>📊 Analyse & Rédaction</h3>"))
-    display(HBox([btn_analyser, btn_conclusions, btn_ameliorer, btn_rediger_acte]))
-    display(HTML("<br>"))
-    
-    # ========== SECTION 2 : COMMUNICATION ==========
-    display(HTML("<h3 style='margin-top:5px; margin-bottom:5px;'>📧 Communication</h3>"))
-    display(HBox([btn_email, btn_dalloz]))
+    # ========== SECTION 1 : ANALYSE & RÉDACTION + OUTILS EXTERNES ==========
+    display(HBox([
+        VBox([
+            HTML("<h3 style='margin-top:15px; margin-bottom:5px;'>📊 Analyse & Rédaction</h3>"),
+            HBox([btn_analyser, btn_conclusions, btn_ameliorer, btn_email])
+        ], layout={'width': '50%'}),
+        VBox([
+            HTML("<h3 style='margin-top:15px; margin-bottom:5px;'>🔗 Outils Externes</h3>"),
+            HBox([btn_dalloz])
+        ], layout={'width': '50%', 'align_items': 'flex-start'})
+    ]))
     display(HTML("<br>"))
     
     # ========== SECTION 3 : DOCUMENTS ==========
     display(HTML("<h3 style='margin-top:5px; margin-bottom:5px;'>📁 Gestion des documents</h3>"))
-    display(HBox([btn_tamponner, btn_sauvegarder, btn_sauvegarder_tout]))
+    display(HBox([btn_tamponner, btn_sauvegarder, btn_sauvegarder_tout, btn_effacer]))
     display(HTML("<br>"))
+
+    # # ========== SECTION 2 : COMMUNICATION ==========
+    # display(HTML("<h3 style='margin-top:5px; margin-bottom:5px;'>📧 Outils Externes</h3>"))
+    # display(HBox([btn_dalloz]))
+    # display(HTML("<br>"))
     
-    # ========== SECTION 4 : UTILITAIRES ==========
-    display(HTML("<h3 style='margin-top:5px; margin-bottom:5px;'>🛠️ Utilitaires</h3>"))
-    display(HBox([btn_effacer]))
+    
+    # # ========== SECTION 4 : UTILITAIRES ==========
+    # display(HTML("<h3 style='margin-top:5px; margin-bottom:5px;'>🛠️ Utilitaires</h3>"))
+    # display(HBox([btn_effacer]))
     
     display(HTML("<br><hr>"))
     display(HTML("<h3>📋 RÉSULTAT</h3>"))
