@@ -1,5 +1,54 @@
 # ============================================
-# INTERFACE AVEC LLM_CLIENT CORRIGÉE
+# CSS STYLES
+# ============================================
+from IPython.display import HTML
+
+display(HTML("""
+<style>
+/* Global */
+.widget-label { font-weight: bold !important; }
+button { border-radius: 8px !important; transition: all 0.2s ease; }
+
+/* Sections */
+.section-box {
+    background: #f9fafc;
+    padding: 15px;
+    border-radius: 12px;
+    margin-bottom: 15px;
+    border: 1px solid #e0e0e0;
+}
+
+/* Titles */
+.section-title {
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: #1a73e8;
+}
+
+/* Result box */
+.output-box {
+    background: #ffffff;
+    padding: 15px;
+    border-radius: 10px;
+    border: 1px solid #ddd;
+}
+
+/* Buttons spacing */
+.widget-button {
+    margin-right: 8px !important;
+}
+
+/* Hover */
+button:hover {
+    opacity: 0.85;
+    transform: translateY(-1px);
+}
+</style>
+"""))
+
+# ============================================
+# IMPORTS
 # ============================================
 from ipywidgets import (
     Textarea, Button, Output, VBox, HBox, HTML,
@@ -10,22 +59,21 @@ import time
 import os
 from datetime import datetime
 import re
+
 from utils.utils_recherche_genial import rechercher_dalloz
-# ============================================
-# TAMPON AVEC CONFIG YAML
-# ============================================
 from utils.utils_tampon import (
     charger_config_tampon, 
     sauvegarder_config_tampon, 
     generer_tampon,
     appliquer_tampon,
-    appliquer_tampon_fichier  # ← AJOUTER CETTE LIGNE
+    appliquer_tampon_fichier
 )
-
 from utils.utils_action_rediger_acte import rediger_acte_juridique
 
 
-# Style des boutons (taille augmentée)
+# ============================================
+# CONSTANTES & STYLES
+# ============================================
 BUTTON_STYLE = {
     'font_weight': 'bold',
     'padding': '10px 16px',
@@ -33,25 +81,140 @@ BUTTON_STYLE = {
 }
 
 def style_button(btn, custom_style=None):
-    """Applique un style uniforme aux boutons"""
     style = custom_style or BUTTON_STYLE
     for key, value in style.items():
         setattr(btn, key, value)
     return btn
 
-# ============================================
-# WIDGETS TAMPON AVEC CONFIG YAML
-# ============================================
 
+# ============================================
+# STATE MANAGEMENT
+# ============================================
+class AppState:
+    def __init__(self):
+        self.dernier_resultat = None
+        self.texte_original = None
+        self.type_generation = None
+        self.fichier_path = None
+        self.contenu_upload = None
+        self.nom_fichier = None
+        self.llm_client = None
+
+state = AppState()
+
+
+# ============================================
+# FONCTIONS MÉTIER
+# ============================================
+def sanitize_filename(nom: str) -> str:
+    return re.sub(r'[<>:"/\\|?*]', '_', nom)
+
+def generer_nom_fichier(original: str, suffixe: str) -> str:
+    if original:
+        base = os.path.splitext(os.path.basename(original))[0]
+        base = sanitize_filename(base)
+    else:
+        base = "document"
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return f"{base}_{suffixe}_{timestamp}.txt"
+
+def sauvegarder_texte(contenu: str, chemin_complet: str) -> bool:
+    try:
+        dossier = os.path.dirname(chemin_complet)
+        if dossier and not os.path.exists(dossier):
+            os.makedirs(dossier)
+        with open(chemin_complet, 'w', encoding='utf-8') as f:
+            f.write(contenu)
+        print(f"✅ Sauvegardé : {chemin_complet}")
+        return True
+    except Exception as e:
+        print(f"❌ Erreur : {str(e)}")
+        return False
+
+
+# ============================================
+# FONCTIONS D'ANALYSE
+# ============================================
+def analyser_document(texte: str, llm_client) -> str:
+    prompt = f"""Analyse juridique du document suivant.
+
+Fournis:
+1. RÉSUMÉ (5-10 lignes)
+2. POINTS CLÉS (liste à puces)
+3. RISQUES JURIDIQUES
+4. RECOMMANDATIONS
+
+Document: {texte[:6000]}"""
+    system_prompt = "Tu es un avocat expert en droit français. Réponds de manière structurée et précise."
+    result = llm_client.call_llm(prompt, system_prompt, llm_client.modele_actif, temperature=0.3)
+    if result.get("error"):
+        return f"❌ Erreur: {result['error']}"
+    return result["content"]
+
+def preparer_conclusions(texte: str, llm_client) -> str:
+    prompt = f"""À partir du document suivant, rédige des CONCLUSIONS JURIDIQUES professionnelles.
+
+Structure:
+- RAPPEL DES FAITS (3-5 lignes)
+- ANALYSE JURIDIQUE
+- ARGUMENTS PRINCIPAUX
+- DEMANDES (si applicable)
+
+Document: {texte[:6000]}"""
+    system_prompt = "Tu es un avocat plaidant. Rédige des conclusions claires et persuasives."
+    result = llm_client.call_llm(prompt, system_prompt, llm_client.modele_actif, temperature=0.3)
+    if result.get("error"):
+        return f"❌ Erreur: {result['error']}"
+    return result["content"]
+
+def ameliorer_redaction(texte: str, llm_client) -> str:
+    prompt = f"""Améliore la rédaction de ce texte juridique:
+
+Critères:
+- Clarifier le langage
+- Corriger les fautes
+- Améliorer la structure
+- Rendre plus professionnel
+
+TEXTE ORIGINAL:
+{texte[:6000]}
+
+TEXTE AMÉLIORÉ:"""
+    system_prompt = "Tu es un expert en rédaction juridique française. Améliore le texte sans changer le sens."
+    result = llm_client.call_llm(prompt, system_prompt, llm_client.modele_actif, temperature=0.3)
+    if result.get("error"):
+        return f"❌ Erreur: {result['error']}"
+    return result["content"]
+
+def preparer_email(analyse: str, llm_client) -> str:
+    prompt = f"""Transforme cette analyse juridique en un email professionnel pour un client.
+
+Analyse à transformer:
+{analyse[:4000]}
+
+L'email doit inclure:
+- Objet clair
+- Formule d'appel
+- Résumé des points clés
+- Prochaines étapes
+- Formule de politesse"""
+    system_prompt = "Tu es un avocat rédigeant un email à un client. Sois clair, précis et professionnel."
+    result = llm_client.call_llm(prompt, system_prompt, llm_client.modele_actif, temperature=0.3)
+    if result.get("error"):
+        return f"❌ Erreur: {result['error']}"
+    return result["content"]
+
+
+# ============================================
+# WIDGETS TAMPON
+# ============================================
 def creer_widgets_tampon_config():
-    """Crée les widgets pour éditer la configuration du tampon"""
     from ipywidgets import Text, Button, VBox, HBox, HTML, Dropdown
     from utils.utils_tampon import charger_config_tampon, sauvegarder_config_tampon, generer_tampon
     
     config = charger_config_tampon()
     avocat = config["avocat"]
     
-    # Champs éditables
     nom = Text(value=avocat["nom"], description="Nom:", layout={'width': '200px'})
     prenom = Text(value=avocat["prenom"], description="Prénom:", layout={'width': '200px'})
     fonction = Text(value=avocat["fonction"], description="Fonction:", layout={'width': '200px'})
@@ -61,7 +224,6 @@ def creer_widgets_tampon_config():
     email = Text(value=avocat["email"], description="Email:", layout={'width': '250px'})
     adresse = Text(value=avocat["adresse"], description="Adresse:", layout={'width': '350px'})
     
-    # Options
     type_tampon = Dropdown(
         options=[("Officiel", "officiel"), ("Confidentiel", "confidentiel"), 
                  ("Reçu", "recu"), ("Brouillon", "brouillon")],
@@ -80,7 +242,6 @@ def creer_widgets_tampon_config():
     btn_sauvegarder = style_button(Button(description="💾 Sauvegarder config", button_style='primary'))
     btn_tamponner = style_button(Button(description="🖊️ Tamponner", button_style='warning'))
     
-    # Aperçu du tampon
     apercu = HTML("")
     
     def mise_a_jour_apercu(*args):
@@ -95,7 +256,6 @@ def creer_widgets_tampon_config():
         tampon = generer_tampon(nouvelle_config, type_tampon.value)
         apercu.value = f"<pre style='font-size:11px; background:#f5f5f5; padding:8px; border-radius:5px;'>{tampon}</pre>"
     
-    # Observer les changements
     for w in [nom, prenom, fonction, barreau, siret, telephone, email, adresse, type_tampon]:
         w.observe(mise_a_jour_apercu, names='value')
     
@@ -112,10 +272,8 @@ def creer_widgets_tampon_config():
         apercu.value = "<span style='color:green'>✅ Configuration sauvegardée</span>"
     
     btn_sauvegarder.on_click(sauvegarder)
-    
     mise_a_jour_apercu()
     
-    # Organisation compacte
     widgets = VBox([
         HBox([nom, prenom, fonction]),
         HBox([barreau, siret]),
@@ -128,135 +286,12 @@ def creer_widgets_tampon_config():
     
     return widgets, btn_tamponner
 
-
-
-# Widgets tampon
 tampon_widgets, btn_tamponner = creer_widgets_tampon_config()
 
 
-# ========== FONCTIONS DE SAUVEGARDE ==========
-def sanitize_filename(nom: str) -> str:
-    """Nettoie un nom de fichier"""
-    return re.sub(r'[<>:"/\\|?*]', '_', nom)
-
-def generer_nom_fichier(original: str, suffixe: str) -> str:
-    """Génère un nom de fichier par défaut"""
-    if original:
-        base = os.path.splitext(os.path.basename(original))[0]
-        base = sanitize_filename(base)
-    else:
-        base = "document"
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    return f"{base}_{suffixe}_{timestamp}.txt"
-
-def sauvegarder_texte(contenu: str, chemin_complet: str) -> bool:
-    """Sauvegarde du texte dans un fichier"""
-    try:
-        dossier = os.path.dirname(chemin_complet)
-        if dossier and not os.path.exists(dossier):
-            os.makedirs(dossier)
-
-        with open(chemin_complet, 'w', encoding='utf-8') as f:
-            f.write(contenu)
-
-        print(f"✅ Sauvegardé : {chemin_complet}")
-        return True
-    except Exception as e:
-        print(f"❌ Erreur : {str(e)}")
-        return False
-
-# ========== FONCTIONS D'ANALYSE AVEC LLM_CLIENT ==========
-def analyser_document(texte: str, llm_client) -> str:
-    """Analyse juridique d'un document"""
-    prompt = f"""Analyse juridique du document suivant.
-
-Fournis:
-1. RÉSUMÉ (5-10 lignes)
-2. POINTS CLÉS (liste à puces)
-3. RISQUES JURIDIQUES
-4. RECOMMANDATIONS
-
-Document: {texte[:6000]}"""
-
-    system_prompt = "Tu es un avocat expert en droit français. Réponds de manière structurée et précise."
-
-    result = llm_client.call_llm(prompt, system_prompt, llm_client.modele_actif, temperature=0.3)
-
-    if result.get("error"):
-        return f"❌ Erreur: {result['error']}"
-
-    return result["content"]
-
-
-def preparer_conclusions(texte: str, llm_client) -> str:
-    """Prépare des conclusions juridiques"""
-    prompt = f"""À partir du document suivant, rédige des CONCLUSIONS JURIDIQUES professionnelles.
-
-Structure:
-- RAPPEL DES FAITS (3-5 lignes)
-- ANALYSE JURIDIQUE
-- ARGUMENTS PRINCIPAUX
-- DEMANDES (si applicable)
-
-Document: {texte[:6000]}"""
-
-    system_prompt = "Tu es un avocat plaidant. Rédige des conclusions claires et persuasives."
-
-    result = llm_client.call_llm(prompt, system_prompt, llm_client.modele_actif, temperature=0.3)
-
-    if result.get("error"):
-        return f"❌ Erreur: {result['error']}"
-
-    return result["content"]
-
-def ameliorer_redaction(texte: str, llm_client) -> str:
-    """Améliore la rédaction d'un texte juridique"""
-    prompt = f"""Améliore la rédaction de ce texte juridique:
-
-Critères:
-- Clarifier le langage
-- Corriger les fautes
-- Améliorer la structure
-- Rendre plus professionnel
-
-TEXTE ORIGINAL:
-{texte[:6000]}
-
-TEXTE AMÉLIORÉ:"""
-
-    system_prompt = "Tu es un expert en rédaction juridique française. Améliore le texte sans changer le sens."
-
-    result = llm_client.call_llm(prompt, system_prompt, llm_client.modele_actif, temperature=0.3)
-
-    if result.get("error"):
-        return f"❌ Erreur: {result['error']}"
-
-    return result["content"]
-
-def preparer_email(analyse: str, llm_client) -> str:
-    """Prépare un email professionnel à partir d'une analyse"""
-    prompt = f"""Transforme cette analyse juridique en un email professionnel pour un client.
-
-Analyse à transformer:
-{analyse[:4000]}
-
-L'email doit inclure:
-- Objet clair
-- Formule d'appel
-- Résumé des points clés
-- Prochaines étapes
-- Formule de politesse"""
-
-    system_prompt = "Tu es un avocat rédigeant un email à un client. Sois clair, précis et professionnel."
-
-    result = llm_client.call_llm(prompt, system_prompt, llm_client.modele_actif, temperature=0.3)
-
-    if result.get("error"):
-        return f"❌ Erreur: {result['error']}"
-
-    return result["content"]
-
-# ========== VÉRIFICATION DES CLÉS API ==========
+# ============================================
+# VÉRIFICATION DES CLÉS API
+# ============================================
 def get_providers_disponibles(llm_client):
     disponibles = []
     if llm_client.API_KEYS.get("groq"):
@@ -273,11 +308,7 @@ PROVIDER_TO_CATEGORY = {
     "anthropic": "🟣 Anthropic Claude",
 }
 
-# ========== CONSTRUCTION DU DROPDOWN ==========
 def creer_selecteur_modele(llm_client):
-    """Crée le sélecteur de modèle à partir du LLM client"""
-    
-    # Récupérer les modèles depuis le client
     provider_models = {}
     for model_id, info in llm_client.MODELES_DISPONIBLES.items():
         provider = info["provider"]
@@ -285,7 +316,6 @@ def creer_selecteur_modele(llm_client):
             provider_models[provider] = {}
         provider_models[provider][model_id] = info["name"]
     
-    # Construire les choix
     providers_dispo = get_providers_disponibles(llm_client)
     modele_choices = []
     
@@ -302,7 +332,7 @@ def creer_selecteur_modele(llm_client):
         options=modele_choices,
         value=llm_client.modele_actif,
         description="🤖 Modèle:",
-        layout={'width': '90%'},
+        layout={'width': '100%'},
         style={'description_width': 'initial'}
     )
     
@@ -320,141 +350,100 @@ def creer_selecteur_modele(llm_client):
     return modele_selector, modele_info
 
 
+# ============================================
+# INTERFACE PRINCIPALE
+# ============================================
+class AssistantUI:
+    def __init__(self, llm_client):
+        self.llm = llm_client
+        self.modele_selector, self.modele_info = creer_selecteur_modele(llm_client)
+        self.build_ui()
+        self.bind_events()
 
-# ========== CRÉATION DE L'INTERFACE ==========
-def creer_interface(llm_client):
-    """Crée l'interface complète avec le client LLM"""
-    
-    # Dossier par défaut pour les fichiers externes
-    DOSSIER_BASE_EXTERNE = "/content/drive/MyDrive/assistant-juridique"
-    
-    # Sélecteur de modèle
-    modele_selector, modele_info = creer_selecteur_modele(llm_client)
-
-
-    type_acte_selector = Dropdown(
-        options=[
-            ("📄 Contrat", "contrat"),
-            ("📝 Avenant", "avenant"),
-            ("📜 Acte unilatéral", "acte_unilateral"),
-            ("🤝 Convention", "convention"),
-            ("✅ Quitus", "quitus")
-        ],
-        value="contrat",
-        description="Type d'acte:",
-        style={'description_width': 'initial'},
-        layout={'width': '300px'}
-    )
-
-    btn_rediger_acte = style_button(Button(
-        description="📜 Rédiger un acte juridique",
-        button_style='primary',
-        tooltip="Génère un acte juridique structuré selon le plan standard"
-    ))
-
-    def on_rediger_acte(b):
-        texte = get_texte()
-        if not texte:
-            with output:
-                clear_output()
-                display(HTML("<span style='color:red'>❌ Fournissez une description des faits et objectifs</span>"))
-            return
-        
-        type_acte = type_acte_selector.value
-        traiter(
-            lambda t, c: rediger_acte_juridique(t, c, type_acte), 
-            f"📜 Rédaction d'un {type_acte}", 
-            texte, 
-            f"acte_{type_acte}"
+    def build_ui(self):
+        # Widgets d'entrée
+        self.input_texte = Textarea(
+            placeholder="Colle ton texte juridique ici...",
+            layout={'width': '100%', 'height': '120px'}
         )
-    btn_rediger_acte.on_click(on_rediger_acte)
+        
+        self.uploader = FileUpload(
+            accept='.txt,.pdf,.docx,.md',
+            multiple=False,
+            description='📂 Choisir un fichier',
+            layout={'width': '100%'}
+        )
+        self.status_file = HTML("📎 Aucun fichier")
+        
+        self.input_chemin = Textarea(
+            placeholder="/content/drive/MyDrive/mon_dossier.pdf",
+            layout={'width': '100%', 'height': '60px'}
+        )
+        
+        # Type d'acte
+        self.type_acte_selector = Dropdown(
+            options=[
+                ("📄 Contrat", "contrat"),
+                ("📝 Avenant", "avenant"),
+                ("📜 Acte unilatéral", "acte_unilateral"),
+                ("🤝 Convention", "convention"),
+                ("✅ Quitus", "quitus")
+            ],
+            value="contrat",
+            description="Type:",
+            layout={'width': '200px'}
+        )
+        
+        # Boutons
+        self.btn_analyser = style_button(Button(description="🔍 Analyser", button_style='primary'))
+        self.btn_conclusions = style_button(Button(description="⚖️ Conclusions", button_style='primary'))
+        self.btn_ameliorer = style_button(Button(description="✨ Améliorer", button_style='primary'))
+        self.btn_rediger_acte = style_button(Button(description="📜 Rédiger acte", button_style='primary'))
+        self.btn_email = style_button(Button(description="📧 Email", button_style='info'))
+        self.btn_dalloz = style_button(Button(description="🔍 Dalloz", button_style='info'))
+        self.btn_tamponner = btn_tamponner
+        self.btn_sauvegarder = style_button(Button(description="💾 Sauvegarder", button_style='success'))
+        self.btn_sauvegarder_tout = style_button(Button(description="📦 Sauvegarder tout", button_style='warning'))
+        self.btn_effacer = style_button(Button(description="🗑️ Effacer", button_style='danger'))
+        
+        self.output = Output()
+        
+        # Statut des clés
+        self.status_html = HTML("")
+        self.mettre_a_jour_status()
 
-    # Statut des clés
-    status_html = HTML("")
-    def mettre_a_jour_status():
-        providers = get_providers_disponibles(llm_client)
+    def mettre_a_jour_status(self):
+        providers = get_providers_disponibles(self.llm)
         if providers:
-            status_html.value = f"<span style='color:green'>✅ Clés actives: {', '.join([p.upper() for p in providers])}</span>"
+            self.status_html.value = f"<span style='color:green'>✅ {', '.join([p.upper() for p in providers])}</span>"
         else:
-            status_html.value = "<span style='color:red'>❌ Aucune clé API - ajoute GROQ_API_KEY dans Secrets</span>"
-    
-    # Variables pour stocker l'état
-    dernier_resultat = None
-    contenu_fichier_upload = None
-    nom_fichier_upload = None
-    type_generation_courant = None
-    texte_original_courant = None
-    fichier_original_path = None  # ← AJOUT OBLIGATOIRE
-    
-    # Widgets
-    label_depot = HTML("<b>📎 Glisse-dépose ton fichier :</b>")
-    uploader = FileUpload(
-        accept='.txt,.pdf,.docx,.md',
-        multiple=False,
-        description='📂 Choisir un fichier',
-        layout={'width': '100%'}
-    )
-    status_fichier = HTML("<span style='color:gray'>Aucun fichier</span>")
-    
-    label_drive = HTML("<b>📁 Ou chemin dans Drive :</b>")
-    input_chemin = Textarea(
-        placeholder="/content/drive/MyDrive/mon_dossier.pdf",
-        layout={'width': '80%', 'height': '50px'}
-    )
-    
-    label_manuel = HTML("<b>✏️ Ou saisis/colle du texte :</b>")
-    input_texte = Textarea(
-        placeholder="Colle ton texte juridique ici...",
-        layout={'width': '100%', 'height': '150px'}
-    )
-    
-    btn_analyser = style_button(Button(description="🔍 Analyser", button_style='primary'))
-    btn_conclusions = style_button(Button(description="⚖️ Conclusions", button_style='primary'))
-    btn_ameliorer = style_button(Button(description="✨ Améliorer", button_style='primary'))
-    btn_email = style_button(Button(description="📧 Email", button_style='info'))
-    # ========== AJOUT : Bouton Dalloz manuel ==========
-    btn_dalloz = style_button(Button(
-                        description="🔍 Dalloz", 
-                        button_style='info',
-                        tooltip="Rechercher le texte chargé sur Lefebvre Dalloz"
-                    ))
-    # ========== AJOUT : Bouton pour rechercher le résultat généré ==========
-    btn_dalloz_resultat = style_button(Button(
-                                description="🔍 Chercher l'analyse sur Dalloz", 
-                                button_style='info',
-                                layout={'width': 'auto'}
-                            ))
-    btn_sauvegarder = style_button(Button(description="💾 Sauvegarder résultat", button_style='success'))
-    btn_sauvegarder_tout = style_button(Button(description="📦 Sauvegarder tout", button_style='warning'))
-    btn_effacer = style_button(Button(description="🗑️ Effacer", button_style='danger'))
-    
-    # Bouton unique qui détecte automatiquement le type de source
-    btn_tamponner = style_button(Button(
-                description="🖊️ Tamponner le document",
-                button_style='warning',
-                tooltip="Applique le tampon (conserve le format PDF/Word/TXT)"
-            ))
+            self.status_html.value = "<span style='color:red'>❌ Aucune clé API</span>"
 
-    output = Output()
-    
-    # Fonctions utilitaires
-    def lire_fichier_upload(content, filename):
+    def get_texte(self):
+        if self.input_chemin.value.strip():
+            chemin = self.input_chemin.value.strip()
+            if os.path.exists(chemin):
+                with open(chemin, 'rb') as f:
+                    return self.lire_fichier_upload(f.read(), chemin)
+            return None
+        elif hasattr(self, 'contenu_upload') and self.contenu_upload:
+            return self.contenu_upload
+        elif self.input_texte.value.strip():
+            return self.input_texte.value
+        return None
+
+    def lire_fichier_upload(self, content, filename):
         extension = filename.split('.')[-1].lower()
         try:
             if extension == 'txt':
                 return content.decode('utf-8')
             elif extension == 'pdf':
-                import PyPDF2
-                import io
+                import PyPDF2, io
                 pdf_file = io.BytesIO(content)
                 reader = PyPDF2.PdfReader(pdf_file)
-                text = ""
-                for page in reader.pages:
-                    text += page.extract_text()
-                return text
+                return "\n".join([page.extract_text() for page in reader.pages])
             elif extension == 'docx':
-                import docx
-                import io
+                import docx, io
                 doc_file = io.BytesIO(content)
                 doc = docx.Document(doc_file)
                 return "\n".join([para.text for para in doc.paragraphs])
@@ -462,457 +451,144 @@ def creer_interface(llm_client):
                 return f"Format non supporté: {extension}"
         except Exception as e:
             return f"Erreur: {str(e)}"
-    
-    def get_texte():
-        nonlocal contenu_fichier_upload, fichier_original_path
+
+    def traiter(self, fonction, titre, texte, type_gen):
+        state.type_generation = type_gen
+        state.texte_original = texte
         
-        if input_chemin.value.strip():
-            chemin = input_chemin.value.strip()
-            if os.path.exists(chemin):
-                fichier_original_path = chemin
-                with open(chemin, 'rb') as f:
-                    return lire_fichier_upload(f.read(), chemin)
-            else:
-                return None
-        elif contenu_fichier_upload:
-            return contenu_fichier_upload
-        elif input_texte.value.strip():
-            fichier_original_path = None
-            return input_texte.value
-        return None
-    
-    def traiter(fonction, titre, texte, type_gen):
-        nonlocal dernier_resultat, type_generation_courant, texte_original_courant
-        
-        type_generation_courant = type_gen
-        texte_original_courant = texte
-        
-        with output:
+        with self.output:
             clear_output(wait=True)
-            display(HTML(f"<div style='text-align:center; padding:20px'><b>🤖 {titre} en cours...</b><br><i>Modèle: {llm_client.modele_actif}</i></div>"))
+            display(HTML(f"<div class='output-box' style='text-align:center'><b>🤖 {titre} en cours...</b><br><i>Modèle: {self.llm.modele_actif}</i></div>"))
         
         start = time.time()
         try:
-            resultat = fonction(texte, llm_client)
-            dernier_resultat = resultat
+            resultat = fonction(texte, self.llm)
+            state.dernier_resultat = resultat
             temps = time.time() - start
             
-            with output:
+            with self.output:
                 clear_output(wait=True)
                 display(HTML(f"<h3>{titre}</h3>"))
                 display(Markdown(resultat))
-                display(HTML(f"<small>⚡ Traité en {temps:.1f}s • Modèle: {llm_client.modele_actif}</small>"))
+                display(HTML(f"<small>⚡ {temps:.1f}s • Modèle: {self.llm.modele_actif}</small>"))
                 display(HTML("<hr>"))
-                # ========== AJOUT : Afficher Dalloz avec le texte original ==========
                 display(HTML("<b>🔍 Recherche juridique complémentaire :</b>"))
-                display(rechercher_dalloz(texte))  # ← Recherche à partir du texte source
-                # ===================================================================
-                display(HTML("<i>💾 Clique sur 'Sauvegarder résultat' pour enregistrer</i>"))
+                display(rechercher_dalloz(texte))
+                display(HTML("<i>💾 Sauvegarde disponible ci-dessous</i>"))
         except Exception as e:
-            with output:
+            with self.output:
                 clear_output(wait=True)
                 display(HTML(f"<span style='color:red'>❌ Erreur: {str(e)}</span>"))
-    
 
-    def on_tamponner_texte(b):
-        """Tamponne le texte saisi manuellement"""
-        texte = get_texte()
-        if not texte:
-            with output:
-                clear_output()
-                display(HTML("<span style='color:orange'>⚠️ Aucun texte chargé</span>"))
-            return
-        
-        config = charger_config_tampon()
-        type_tampon = config["options"].get("type_tampon", "officiel")
-        position = config["options"].get("position", "debut")
-        
-        texte_tamponne = appliquer_tampon(texte, config, type_tampon, position)
-        
-        with output:
-            clear_output(wait=True)
-            display(HTML("<h3>🖊️ Texte tamponné</h3>"))
-            display(HTML("<pre style='white-space:pre-wrap; font-size:12px; font-family:monospace; background:#f5f5f5; padding:10px; border-radius:5px;'>" + texte_tamponne + "</pre>"))
-            
-            # Sauvegarde
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            chemin = os.path.join(DOSSIER_BASE_EXTERNE, f"texte_tamponne_{timestamp}.txt")
-            sauvegarder_texte(texte_tamponne, chemin)
-
-    def on_tamponner_fichier(b):
-        """Tamponne le fichier chargé (conserve le format)"""
-        
-        # Récupérer le chemin du fichier source
-        chemin_source = None
-        
-        if input_chemin.value.strip() and os.path.exists(input_chemin.value.strip()):
-            chemin_source = input_chemin.value.strip()
-        elif fichier_original_path and os.path.exists(fichier_original_path):
-            chemin_source = fichier_original_path
-        
-        if not chemin_source:
-            # Pas de fichier, essayer avec le texte saisi
-            texte = get_texte()
-            if texte:
-                on_tamponner_texte(b)
-            else:
-                with output:
-                    clear_output()
-                    display(HTML("<span style='color:orange'>⚠️ Aucun fichier ou texte chargé</span>"))
-            return
-        
-        with output:
-            clear_output(wait=True)
-            display(HTML(f"<div style='text-align:center; padding:20px'><b>🖊️ Tamponnage en cours...</b><br><i>{os.path.basename(chemin_source)}</i></div>"))
-        
-        # Appliquer le tampon
-        chemin_sortie, erreur = appliquer_tampon_fichier(chemin_source)
-        
-        if erreur:
-            with output:
-                clear_output(wait=True)
-                display(HTML(f"<span style='color:red'>❌ Erreur: {erreur}</span>"))
-            return
-        
-        with output:
-            clear_output(wait=True)
-            display(HTML(f"<h3>✅ Document tamponné</h3>"))
-            display(HTML(f"<p><strong>Fichier original :</strong> {os.path.basename(chemin_source)}</p>"))
-            display(HTML(f"<p><strong>Fichier tamponné :</strong> {os.path.basename(chemin_sortie)}</p>"))
-            config_tampon = charger_config_tampon()
-            display(HTML(f"<p><strong>Type :</strong> {config_tampon['options']['type_tampon']}</p>"))
-            
-            # Proposer le téléchargement
-            from google.colab import files
-            try:
-                files.download(chemin_sortie)
-                display(HTML("<span style='color:green'>✅ Téléchargement automatique</span>"))
-            except:
-                display(HTML(f"<a href='{chemin_sortie}' download style='background:#1a73e8; color:white; padding:8px 16px; text-decoration:none; border-radius:5px;'>📥 Télécharger</a>"))
-
-
-    def on_tamponner(b):
-        """Détecte automatiquement si c'est un fichier ou du texte"""
-        # Vérifier si un fichier est chargé
-        a_un_fichier = False
-        
-        if input_chemin.value.strip() and os.path.exists(input_chemin.value.strip()):
-            a_un_fichier = True
-        elif fichier_original_path and os.path.exists(fichier_original_path):
-            a_un_fichier = True
-        
-        if a_un_fichier:
-            on_tamponner_fichier(b)
-        else:
-            on_tamponner_texte(b)
-
-    btn_tamponner.on_click(on_tamponner)
-
-    def on_dalloz_manuel(b):
-        texte = get_texte()
-        if not texte:
-            with output:
-                clear_output()
-                display(HTML("<span style='color:orange'>⚠️ Aucun texte chargé à rechercher</span>"))
-            return
-        
-        with output:
-            clear_output(wait=True)
-            display(HTML("<b>🔍 Recherche Lefebvre Dalloz</b>"))
-            display(rechercher_dalloz(texte))
-
-    def on_dalloz_resultat(b):
-        global dernier_resultat
-        if not dernier_resultat:
-            with output:
-                clear_output()
-                display(HTML("<span style='color:orange'>⚠️ Générez d'abord une analyse</span>"))
-            return
-        
-        with output:
-            clear_output(wait=True)
-            display(HTML("<b>🔍 Recherche à partir de l'analyse générée</b>"))
-            display(rechercher_dalloz(dernier_resultat))
-
-    btn_dalloz_resultat.on_click(on_dalloz_resultat)
-
-    # Ajouter sous la barre d'outils principale
-    # display(HTML("<br>"))
-    # display(HBox([btn_dalloz_resultat]))
-    # =================================================    
-
-    btn_dalloz.on_click(on_dalloz_manuel)
-    # =================================================
-    # Gestionnaires d'événements
-    def on_upload_change(change):
-        nonlocal contenu_fichier_upload, nom_fichier_upload, fichier_original_path
-        
-        if uploader.value:
-            for filename, file_info in uploader.value.items():
-                nom_fichier_upload = filename
-                fichier_original_path = filename
+    def on_upload_change(self, change):
+        if self.uploader.value:
+            for filename, file_info in self.uploader.value.items():
+                self.nom_fichier = filename
                 content = file_info['content']
-                contenu_fichier_upload = lire_fichier_upload(content, filename)
-                status_fichier.value = f"<span style='color:green'>✅ {filename} ({len(contenu_fichier_upload)} car)</span>"
-                input_texte.value = ""
-                input_chemin.value = ""
-    
-    def on_effacer(b):
-        nonlocal contenu_fichier_upload, nom_fichier_upload, dernier_resultat, fichier_original_path
-        
-        contenu_fichier_upload = None
-        nom_fichier_upload = None
-        dernier_resultat = None
-        fichier_original_path = None
-        uploader.value = {}
-        input_texte.value = ""
-        input_chemin.value = ""
-        status_fichier.value = "<span style='color:gray'>Aucun fichier</span>"
-        with output:
+                self.contenu_upload = self.lire_fichier_upload(content, filename)
+                self.status_file.value = f"✅ {filename} ({len(self.contenu_upload)} car)"
+                self.input_texte.value = ""
+                self.input_chemin.value = ""
+
+    def on_effacer(self, b):
+        self.contenu_upload = None
+        self.nom_fichier = None
+        state.dernier_resultat = None
+        self.uploader.value = {}
+        self.input_texte.value = ""
+        self.input_chemin.value = ""
+        self.status_file.value = "📎 Aucun fichier"
+        with self.output:
             clear_output()
             display(HTML("<i>✨ Prêt</i>"))
-    
-    def on_sauvegarder(b):
-        nonlocal dernier_resultat, nom_fichier_upload, type_generation_courant
-        
-        if not dernier_resultat:
-            with output:
+
+    def on_sauvegarder(self, b):
+        if not state.dernier_resultat:
+            with self.output:
                 clear_output(wait=True)
-                display(HTML("<span style='color:orange'>⚠️ Rien à sauvegarder. Générez d'abord un résultat.</span>"))
+                display(HTML("<span style='color:orange'>⚠️ Rien à sauvegarder</span>"))
             return
         
-        # Déterminer le dossier
-        if input_chemin.value.strip():
-            dossier = os.path.dirname(input_chemin.value.strip())
-            nom_base = os.path.basename(input_chemin.value.strip())
-        elif nom_fichier_upload:
-            dossier = os.path.join(DOSSIER_BASE_EXTERNE, sanitize_filename(nom_fichier_upload.replace('.', '_')))
-            nom_base = nom_fichier_upload
-        else:
-            dossier = DOSSIER_BASE_EXTERNE
-            nom_base = "saisie"
-        
-        os.makedirs(dossier, exist_ok=True)
-        nom_fichier = generer_nom_fichier(nom_base, type_generation_courant or "generation")
-        chemin_complet = os.path.join(dossier, nom_fichier)
-        
-        if sauvegarder_texte(dernier_resultat, chemin_complet):
-            with output:
+        base = self.nom_fichier or "document"
+        chemin = os.path.join("/content/drive/MyDrive/assistant-juridique", 
+                              generer_nom_fichier(base, state.type_generation or "generation"))
+        if sauvegarder_texte(state.dernier_resultat, chemin):
+            with self.output:
                 clear_output(wait=True)
-                display(HTML(f"<span style='color:green'>✅ Sauvegardé : {chemin_complet}</span>"))
-    
-    def on_sauvegarder_tout(b):
-        nonlocal dernier_resultat, texte_original_courant, nom_fichier_upload, type_generation_courant
-        
-        if not dernier_resultat or not texte_original_courant:
-            with output:
-                clear_output(wait=True)
-                display(HTML("<span style='color:orange'>⚠️ Générez d'abord un résultat</span>"))
-            return
-        
-        if input_chemin.value.strip():
-            dossier_base = os.path.dirname(input_chemin.value.strip())
-            nom_base = os.path.basename(input_chemin.value.strip()).replace('.', '_')
-        elif nom_fichier_upload:
-            dossier_base = os.path.join(DOSSIER_BASE_EXTERNE, sanitize_filename(nom_fichier_upload.replace('.', '_')))
-            nom_base = sanitize_filename(nom_fichier_upload.replace('.', '_'))
-        else:
-            dossier_base = os.path.join(DOSSIER_BASE_EXTERNE, f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
-            nom_base = "saisie"
-        
-        os.makedirs(dossier_base, exist_ok=True)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        
-        chemin_original = os.path.join(dossier_base, f"{nom_base}_original_{timestamp}.txt")
-        chemin_genere = os.path.join(dossier_base, f"{nom_base}_{type_generation_courant}_{timestamp}.txt")
-        
-        ok1 = sauvegarder_texte(texte_original_courant, chemin_original)
-        ok2 = sauvegarder_texte(dernier_resultat, chemin_genere)
-        
-        with output:
-            clear_output(wait=True)
-            if ok1 and ok2:
-                display(HTML("<span style='color:green'>✅ Sauvegarde complète réussie !</span>"))
-                display(HTML(f"📄 Original : {chemin_original}"))
-                display(HTML(f"📄 Généré : {chemin_genere}"))
-            else:
-                display(HTML("<span style='color:red'>❌ Erreur lors de la sauvegarde</span>"))
-    
-    def on_analyser(b):
-        texte = get_texte()
-        if not texte:
-            with output:
-                clear_output()
-                display(HTML("<span style='color:red'>❌ Fournissez du texte</span>"))
-            return
-        traiter(analyser_document, "📄 Analyse du document", texte, "analyse")
-    
-    def on_conclusions(b):
-        texte = get_texte()
-        if not texte:
-            with output:
-                clear_output()
-                display(HTML("<span style='color:red'>❌ Fournissez du texte</span>"))
-            return
-        traiter(preparer_conclusions, "⚖️ Conclusions juridiques", texte, "conclusions")
-    
-    def on_ameliorer(b):
-        texte = get_texte()
-        if not texte:
-            with output:
-                clear_output()
-                display(HTML("<span style='color:red'>❌ Fournissez du texte</span>"))
-            return
-        traiter(ameliorer_redaction, "✨ Texte amélioré", texte, "amelioration")
-    
-    def on_email(b):
-        nonlocal dernier_resultat, type_generation_courant
-        
-        if not dernier_resultat:
-            with output:
-                clear_output()
-                display(HTML("<span style='color:orange'>⚠️ Générez d'abord un résultat</span>"))
-            return
-        
-        with output:
-            clear_output(wait=True)
-            display(HTML("<b>📧 Génération de l'email...</b>"))
-        
-        email = preparer_email(dernier_resultat, llm_client)
-        dernier_resultat = email
-        type_generation_courant = "email"
-        
-        with output:
-            clear_output(wait=True)
-            display(HTML("<h3>📧 Email préparé</h3>"))
-            display(Markdown(email))
-            display(HTML("<hr><i>💾 Clique sur 'Sauvegarder résultat' pour enregistrer</i>"))
-    
-    # Connecter les événements
-    uploader.observe(on_upload_change, names='value')
-    btn_analyser.on_click(on_analyser)
-    btn_conclusions.on_click(on_conclusions)
-    btn_ameliorer.on_click(on_ameliorer)
-    btn_email.on_click(on_email)
-    btn_sauvegarder.on_click(on_sauvegarder)
-    btn_sauvegarder_tout.on_click(on_sauvegarder_tout)
-    btn_effacer.on_click(on_effacer)
-    
-    # Afficher l'interface
-    mettre_a_jour_status()
-    
-    display(HTML("<h1 style='color:#1a73e8'>🤖 Assistant Juridique IA</h1>"))
-    display(HTML("<hr>"))
-    
-    # display(HTML("<h3>🔑 Statut des clés API</h3>"))
-    # display(status_html)
-    # display(HTML("<br>"))
-    
-    # display(HTML("<h3>🎛️ Modèle IA</h3>"))
-    # display(modele_selector)
-    # display(modele_info)
-    # display(HTML("<br>"))
+                display(HTML(f"<span style='color:green'>✅ Sauvegardé : {chemin}</span>"))
 
-# Configuration sur une ligne
-    # display(HTML("<h3>⚙️ Configuration</h3>"))
-    # display(HBox([
-    #     VBox([HTML("<b>🔑 Clés</b>"), status_html]),
-    #     VBox([HTML("<b>🤖 Modèle</b>"), modele_selector]),
-    #     VBox([HTML("<b>ℹ️ Info</b>"), modele_info])
-    # ]))
-    # display(HTML("<h3>📎 Fichier</h3>"))
-    # display(label_depot)
-    # display(uploader)
-    # display(status_fichier)
-    # display(HTML("<br>"))
-    # display(label_drive)
-    # display(input_chemin)
-       
+    def bind_events(self):
+        self.uploader.observe(self.on_upload_change, names='value')
+        self.btn_analyser.on_click(lambda b: self.traiter(analyser_document, "📄 Analyse", self.get_texte(), "analyse"))
+        self.btn_conclusions.on_click(lambda b: self.traiter(preparer_conclusions, "⚖️ Conclusions", self.get_texte(), "conclusions"))
+        self.btn_ameliorer.on_click(lambda b: self.traiter(ameliorer_redaction, "✨ Amélioration", self.get_texte(), "amelioration"))
+        self.btn_rediger_acte.on_click(lambda b: self.traiter(
+            lambda t, c: rediger_acte_juridique(t, c, self.type_acte_selector.value),
+            f"📜 {self.type_acte_selector.value}", self.get_texte(), "acte"))
+        self.btn_email.on_click(lambda b: self.traiter(preparer_email, "📧 Email", state.dernier_resultat or self.get_texte(), "email"))
+        self.btn_dalloz.on_click(lambda b: self.traiter(lambda t, c: rechercher_dalloz(t), "🔍 Dalloz", self.get_texte(), "dalloz"))
+        self.btn_sauvegarder.on_click(self.on_sauvegarder)
+        self.btn_effacer.on_click(self.on_effacer)
 
-    
-    # # ========== SECTION RÉDACTION D'ACTES ==========
-    # display(HTML("<h3>📜 Rédaction d'actes juridiques</h3>"))
-    # display(HBox([type_acte_selector, btn_rediger_acte]))
-    # display(HTML("<br>"))
-
-    # # Configuration sur une ligne
-    # display(HTML("<h3>⚙️ Configuration</h3>"))
-    # display(HBox([
-    #     VBox([HTML("<b>🔑 Clés</b>"), status_html]),
-    #     VBox([HTML("<b>🤖 Modèle</b>"), modele_selector]),
-    #     VBox([HTML("<b>ℹ️ Info</b>"), modele_info])
-    # ]))
-    display(VBox([
-        HBox([
-            HTML("<b>🔑 Clés</b>", layout={'width': '33%'}),
-            HTML("<b>🤖 Modèle</b>", layout={'width': '33%'}),
-            HTML("<b>ℹ️ Info</b>", layout={'width': '34%'})
-        ]),
-        HBox([
-            VBox([status_html], layout={'width': '33%'}),
-            VBox([modele_selector], layout={'width': '33%'}),
-            VBox([modele_info], layout={'width': '34%'})
-        ])
-    ]))
-    
-    # Sources sur une ligne
-    display(HTML("<h3>📁 Sources</h3>"))
-    display(HBox([
-        VBox([HTML("<b>📎 Fichier</b>"), uploader, status_fichier], layout={'width': '20%'}),
-        VBox([HTML("<b>📁 Drive</b>"), input_chemin], layout={'width': '20%'}),
-        VBox([HTML("<b>✏️ Texte</b>"), input_texte], layout={'width': '60%'})
-    ]))
-
-
-    # display(HTML("<br><hr>"))
-    # display(HTML("<h3>✏️ Saisie directe</h3>"))
-    # display(label_manuel)
-    # display(input_texte)
-
-    # Barre d'outils principale
-    # display(HBox([btn_analyser, btn_conclusions, btn_ameliorer, btn_email, btn_dalloz]))
-    # display(HBox([btn_sauvegarder, btn_sauvegarder_tout, btn_effacer]))
-    # ========== SECTION 1 : ANALYSE & RÉDACTION + OUTILS EXTERNES ==========
-    display(HBox([
-        VBox([
-            HTML("<h3 style='margin-top:15px; margin-bottom:5px;'>📊 Analyse & Rédaction</h3>"),
-            HBox([btn_analyser, btn_conclusions, btn_ameliorer, btn_email])
-        ], layout={'width': '50%'}),
-        VBox([
-            HTML("<h3 style='margin-top:15px; margin-bottom:5px;'>🔗 Outils Externes</h3>"),
-            HBox([btn_dalloz])
-        ], layout={'width': '50%', 'align_items': 'flex-start'})
-    ]))
-    display(HTML("<br>"))
-    
-    # ========== SECTION 3 : DOCUMENTS ==========
-    display(HTML("<h3 style='margin-top:5px; margin-bottom:5px;'>📁 Gestion des documents</h3>"))
-    display(HBox([btn_tamponner, btn_sauvegarder, btn_sauvegarder_tout, btn_effacer]))
-    display(HTML("<br>"))
-
-    # # ========== SECTION 2 : COMMUNICATION ==========
-    # display(HTML("<h3 style='margin-top:5px; margin-bottom:5px;'>📧 Outils Externes</h3>"))
-    # display(HBox([btn_dalloz]))
-    # display(HTML("<br>"))
-    
-    
-    # # ========== SECTION 4 : UTILITAIRES ==========
-    # display(HTML("<h3 style='margin-top:5px; margin-bottom:5px;'>🛠️ Utilitaires</h3>"))
-    # display(HBox([btn_effacer]))
-    
-    display(HTML("<br><hr>"))
-    display(HTML("<h3>📋 RÉSULTAT</h3>"))
-    display(output)
-       
-    print("\n✅ Interface prête !")
-    print("💡 1. Choisis un modèle")
-    print("💡 2. Dépose un fichier ou colle du texte")
-    print("💡 3. Clique sur Analyser / Conclusions / Améliorer")
-    print("💡 4. Clique sur 'Sauvegarder résultat' pour enregistrer")
+    def render(self):
+        display(HTML("<h1 style='color:#1a73e8; text-align:center'>⚖️ Juribot</h1>"))
+        display(HTML("<p style='text-align:center'><i>Prêt à vous libérer du temps</i></p>"))
+        display(HTML("<hr>"))
+        
+        # Ligne 1 : Configuration
+        display(HTML("<div class='section-box'>"))
+        display(HTML("<div class='section-title'>⚙️ Configuration</div>"))
+        display(HBox([
+            VBox([HTML("<b>🔑 Clés</b>"), self.status_html], layout={'width': '25%'}),
+            VBox([HTML("<b>🤖 Modèle</b>"), self.modele_selector], layout={'width': '50%'}),
+            VBox([HTML("<b>ℹ️ Info</b>"), self.modele_info], layout={'width': '25%'})
+        ]))
+        display(HTML("</div>"))
+        
+        # Ligne 2 : Sources
+        display(HTML("<div class='section-box'>"))
+        display(HTML("<div class='section-title'>📁 Sources</div>"))
+        display(HBox([
+            VBox([HTML("<b>📎 Fichier</b>"), self.uploader, self.status_file], layout={'width': '30%'}),
+            VBox([HTML("<b>📁 Drive</b>"), self.input_chemin], layout={'width': '30%'}),
+            VBox([HTML("<b>✏️ Texte</b>"), self.input_texte], layout={'width': '40%'})
+        ]))
+        display(HTML("</div>"))
+        
+        # Ligne 3 : Type d'acte
+        display(HTML("<div class='section-box'>"))
+        display(HTML("<div class='section-title'>📜 Rédaction d'actes</div>"))
+        display(HBox([self.type_acte_selector, self.btn_rediger_acte]))
+        display(HTML("</div>"))
+        
+        # Ligne 4 : Actions
+        display(HTML("<div class='section-box'>"))
+        display(HTML("<div class='section-title'>📊 Actions</div>"))
+        display(HBox([self.btn_analyser, self.btn_conclusions, self.btn_ameliorer, self.btn_email, self.btn_dalloz]))
+        display(HBox([self.btn_tamponner, self.btn_sauvegarder, self.btn_sauvegarder_tout, self.btn_effacer]))
+        display(HTML("</div>"))
+        
+        # Résultat
+        display(HTML("<div class='section-box'>"))
+        display(HTML("<div class='section-title'>📋 Résultat</div>"))
+        display(self.output)
+        display(HTML("</div>"))
+        
+        print("\n✅ Interface prête !")
 
 # ========== UTILISATION ==========
-# Après avoir créé votre LLM client:
-# llm_client = LLM_Client(modele_actif, API_KEYS, MODELES_DISPONIBLES)
-# 
-# Puis lancer l'interface:
-# creer_interface(llm_client)
+# llm_client = LLM_Client(...)
+# ui = AssistantUI(llm_client)
+# ui.render()
+
+# ============================================
+# FONCTION DE COMPATIBILITÉ (interface existante)
+# ============================================
+
+def creer_interface(llm_client):
+    """
+    Fonction de compatibilité qui utilise la nouvelle classe AssistantUI
+    """
+    ui = AssistantUI(llm_client)
+    ui.render()
+    return ui
