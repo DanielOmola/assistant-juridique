@@ -1,0 +1,16 @@
+# Configuration du tampon avocat
+avocat:
+  nom: "DUPONT"
+  prenom: "Jean"
+  fonction: "Avocat"
+  barreau: "Paris"
+  siret: "123 456 789 00012"
+  telephone: "01 23 45 67 89"
+  email: "contact@cabinet.fr"
+  adresse: "1 rue de la Paix, 75001 Paris"
+
+# Options par défaut
+options:
+  type_tampon: "officiel"  # officiel, confidentiel, recu, brouillon
+  position: "debut"         # debut, fin, debut_et_fin
+  date_format: "%d/%m/%Y"
