@@ -1,27 +1,29 @@
 # ⚖️ Assistant Juridique IA
 
-**Solution clé en main pour avocats** - Analyse, rédaction, tampon et recherche juridique.
+**Assistant intelligent pour avocats** - Analyse, rédaction, tampon et recherche juridique.
 
-## 🚀 Installation (1 clic)
+## 🚀 Installation en 1 clic
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/DanielOmola/assistant-juridique/blob/main/installer.ipynb)
 
-## 📋 Fonctionnalités
+1. Cliquez sur le badge ci-dessus
+2. Dans Colab : `Runtime` → `Run all`
+3. Patientez 2 minutes
+4. **L'assistant est installé dans votre Drive !**
 
-- 📄 **Analyse juridique** de documents
-- ⚖️ **Conclusions** structurées
-- ✨ **Amélioration** de rédaction
-- 📧 **Email professionnel** pour clients
-- 🔍 **Recherche Lefebvre Dalloz**
-- 🖊️ **Tampon avocat** configurable
-- 📜 **Rédaction d'actes** (contrats, avenants...)
+## 📁 Après installation
 
-## 🔧 Configuration initiale
+Les fichiers sont dans : `/content/drive/MyDrive/assistant-juridique/`
 
-1. Obtenez une clé **GROQ_API_KEY** gratuite sur [console.groq.com](https://console.groq.com)
-2. Lancez l'installation via le badge ci-dessus
-3. Personnalisez votre tampon dans `config/tampon_config.yaml`
+### Lancement
+1. Ouvrez votre Google Drive
+2. Allez dans `assistant-juridique/notebooks/`
+3. Double-cliquez sur `01_backend_llm.ipynb` → `Runtime` → `Run all`
+4. Double-cliquez sur `02_frontend.ipynb` → `Runtime` → `Run all`
+
+### Configuration initiale
+- `config/api_keys.yaml` → Ajoutez votre clé GROQ_API_KEY
+- `config/tampon_config.yaml` → Personnalisez vos informations
 
 ## 📞 Support
-
-Pour toute question : support@votre-domaine.com
+[Votre email]
