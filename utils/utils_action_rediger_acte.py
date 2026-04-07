@@ -52,12 +52,20 @@ IV. DATE – SIGNATURE
     logger.debug(f"Plan récupéré pour type_acte: {type_acte} - {len(plan)} caractères")
     return plan
 
-
-def rediger_acte_juridique(texte: str, llm_client, type_acte: str = "contrat") -> str:
-    """Rédige un acte juridique structuré selon le plan standard"""
+def rediger_acte_juridique(texte: str, llm_client, type_acte: str = "contrat", instructions: str = "") -> str:
+    """Rédige un acte juridique structuré selon le plan standard
+    
+    Args:
+        texte: Description des faits et objectifs
+        llm_client: Client LLM
+        type_acte: Type d'acte à rédiger
+        instructions: Instructions spécifiques de l'avocat (clauses particulières, mentions spéciales, etc.)
+    """
     
     # Log de début
     logger.info(f"📜 Rédaction d'acte juridique - Type: {type_acte} - {len(texte)} caractères")
+    if instructions and instructions.strip():
+        logger.info(f"📝 Instructions spécifiques: {instructions[:100]}...")
     
     # Vérification des entrées
     if not texte or not texte.strip():
@@ -82,9 +90,20 @@ def rediger_acte_juridique(texte: str, llm_client, type_acte: str = "contrat") -
     plan = get_plan_acte(type_acte)
     logger.debug(f"Plan utilisé: {plan[:200]}...")
     
+    # Construire le prompt avec les instructions si fournies
+    instructions_section = ""
+    if instructions and instructions.strip():
+        instructions_section = f"""
+INSTRUCTIONS SPÉCIFIQUES DE L'AVOCAT :
+{instructions.strip()}
+
+IMPORTANT : Veillez à intégrer ces instructions dans la rédaction de l'acte (clauses spécifiques, mentions particulières, adaptations selon les besoins du client).
+"""
+    
     prompt = f"""Rédige un ACTE JURIDIQUE structuré selon le plan standard suivant :
 
 {plan}
+{instructions_section}
 
 À rédiger en langage juridique français, précis, conforme aux articles du Code civil applicables, et adapté aux faits et objectifs suivants :
 
