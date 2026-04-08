@@ -78,9 +78,9 @@ def get_llm_config(api_keys):
 
 def get_modele_actif():
     API_KEYS = get_api_keys()
-    print(f'\n{"="*25} API_KEYS {"="*25}\n\t{API_KEYS}')
+    # print(f'\n{"="*25} API_KEYS {"="*25}\n\t{API_KEYS}')
     modele_actif, message, MODELES_DISPONIBLES = get_llm_config(api_keys=API_KEYS)
-    print(f'\n{"="*25} modele_actif {"="*25}\n\t{modele_actif}')
+    # print(f'\n{"="*25} modele_actif {"="*25}\n\t{modele_actif}')
     return modele_actif, message, MODELES_DISPONIBLES, API_KEYS
 
 # Exemple d'utilisation :

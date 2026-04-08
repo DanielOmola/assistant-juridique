@@ -10,6 +10,9 @@ from utils.utils_action_analyser_document import analyser_document
 from utils.utils_action_preparer_conclusion import preparer_conclusion
 from utils.utils_action_ameliorer_redaction import ameliorer_redaction
 from utils.utils_action_preparer_email import preparer_email
+from utils.utils_action_analyse_dossier import analyse_dossier
+from utils.utils_action_prepare_audience import prepare_audience
+from utils.utils_action_simuler_adversaire import simuler_adversaire
 
 
 def launch_interface(llm_client):
@@ -25,18 +28,36 @@ def launch_interface(llm_client):
     # Créer l'interface
     ui = QuickTabbedUI(llm_client)
     
-    # Connecter les fonctions
+    # Connecter les fonctions avec les signatures correctes
     ui.connect(
+        # Onglet Analyse & Action
         analyser=lambda t: analyser_document(t, llm_client),
         conclusions=lambda t: preparer_conclusion(t, llm_client),
         ameliorer=lambda t: ameliorer_redaction(t, llm_client),
+        
+        # Onglet Email client
         email=lambda t: preparer_email(t, llm_client),
-        dalloz=lambda t: rechercher_dalloz(t),
+        
+        # Onglet Recherche
+        recherche=lambda t: rechercher_dalloz(t),
+        
+        # Onglet Rédaction actes
         rediger=lambda t, type_, instr: rediger_acte_juridique(t, llm_client, type_, instr),
-        tampon=lambda t: appliquer_tampon(t, charger_config_tampon())
+        
+        # Onglet Tampon
+        tampon=lambda t, config: appliquer_tampon(t, config),
+        
+        # Onglet Analyse dossier (multi-documents)
+        analyse_dossier=lambda paths, client: analyse_dossier(paths, client),
+        
+        # Onglet Préparation audience
+        preparer_audience=lambda analysis, client: prepare_audience(analysis, client),
+        
+        # Onglet Génération arguments
+        generer_arguments=lambda analysis, client: simuler_adversaire(analysis, client)
     )
     
-    # Afficher
+    # Afficher l'interface
     ui.show()
     
     return ui

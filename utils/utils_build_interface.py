@@ -38,6 +38,9 @@ class QuickTabbedUI:
         self.on_recherche = None
         self.on_rediger = None
         self.on_tampon = None
+        self.on_analyse_dossier = None
+        self.on_preparer_audience = None
+        self.on_generer_arguments = None
         
         # Références aux outputs pour mise à jour
         self.result_output = None
@@ -46,6 +49,9 @@ class QuickTabbedUI:
         self.redaction_output = None
         self.recherche_output = None
         self.tampon_output = None
+        self.analyse_dossier_output = None
+        self.stt_output = None
+        self.ocr_output = None
         
         # Appliquer CSS
         global _css_applied
@@ -99,19 +105,6 @@ class QuickTabbedUI:
                     status.value = f"✅ {filename} validé ({len(text)} caractères)"
                 else:
                     status.value = f"✅ Texte validé ({len(text)} caractères)"
-        
-        # Mettre à jour les champs de texte dans chaque onglet
-        # if hasattr(self, '_source_texts'):
-        #     for text_widget in self._source_texts:
-        #         text_widget.value = ""
-        
-        # if hasattr(self, '_source_paths'):
-        #     for path_widget in self._source_paths:
-        #         path_widget.value = ""
-        
-        # if hasattr(self, '_source_files'):
-        #     for file_widget in self._source_files:
-        #         file_widget.value = {}
     
     def _create_source_section(self, tab_name):
         """Crée une section source partagée entre tous les onglets"""
@@ -143,18 +136,6 @@ class QuickTabbedUI:
             layout={'width': '200px'}
         )
         
-
-        # def on_upload_change(change):
-        #     nonlocal uploaded_content, uploaded_filename
-        #     if source_file.value:
-        #         for filename, file_info in source_file.value.items():
-        #             uploaded_filename = filename
-        #             content = file_info['content']
-        #             uploaded_content = self._read_file_content(content, filename)
-        #             source_status.value = f"✅ {filename} chargé ({len(uploaded_content)} caractères)"
-        #             source_text.value = ""
-        #             source_path.value = ""
-                
         def on_upload_change(change):
             nonlocal uploaded_content, uploaded_filename
             if source_file.value:
@@ -163,27 +144,6 @@ class QuickTabbedUI:
                     content = file_info['content']
                     uploaded_content = self._read_file_content(content, filename)
                     source_status.value = f"✅ {filename} chargé ({len(uploaded_content)} caractères)"
-                    # Supprimez ces 2 lignes :
-                    # source_text.value = ""
-                    # source_path.value = ""
-
-        # def on_validate(b):
-        #     nonlocal uploaded_content, uploaded_filename
-        #     if source_text.value.strip():
-        #         self._update_all_sources(source_text.value, None)
-        #     elif source_path.value.strip():
-        #         chemin = source_path.value.strip()
-        #         if os.path.exists(chemin):
-        #             with open(chemin, 'r', encoding='utf-8') as f:
-        #                 self._update_all_sources(f.read(), os.path.basename(chemin))
-        #         else:
-        #             source_status.value = "❌ Fichier introuvable"
-        #             return
-        #     elif uploaded_content:
-        #         self._update_all_sources(uploaded_content, uploaded_filename)
-        #     else:
-        #         source_status.value = "❌ Aucune source sélectionnée"
-        #         return
                 
         def on_validate(b):
             nonlocal uploaded_content, uploaded_filename
@@ -209,15 +169,9 @@ class QuickTabbedUI:
         btn_validate.on_click(on_validate)
         
         # Stocker les références pour mise à jour globale
-        if not hasattr(self, '_source_texts'):
-            self._source_texts = []
-            self._source_paths = []
-            self._source_files = []
+        if not hasattr(self, '_source_statuses'):
             self._source_statuses = []
         
-        self._source_texts.append(source_text)
-        self._source_paths.append(source_path)
-        self._source_files.append(source_file)
         self._source_statuses.append(source_status)
         
         return VBox([
@@ -234,7 +188,7 @@ class QuickTabbedUI:
         ])
     
     def _display_in_result_tab(self, content, operation):
-        """Affiche le résultat dans l'onglet résultat et dans l'onglet actif"""
+        """Affiche le résultat dans l'onglet résultat"""
         self._last_result = content
         self._last_operation = operation
         
@@ -251,7 +205,6 @@ class QuickTabbedUI:
                 """))
         
         # Basculer vers l'onglet résultat
-        # Trouver l'index de l'onglet Résultat
         for i in range(len(self.tabs.children)):
             if self.tabs.get_title(i) == "📋 Résultat":
                 self.tabs.selected_index = i
@@ -445,6 +398,88 @@ class QuickTabbedUI:
             HBox([btn_analyser, btn_conclusions, btn_ameliorer], layout={'justify_content': 'center'}),
             HTML("<hr>"),
             self.analyse_output
+        ], layout={'padding': '15px'})
+    
+    def _build_analyse_dossier_tab(self):
+        """Onglet Analyse de dossier complet (multi-documents)"""
+        
+        self.analyse_dossier_output = Output(layout={'width': '100%', 'max_height': '500px', 'overflow_y': 'auto'})
+        
+        # Upload de multiples fichiers
+        dossier_files = FileUpload(
+            accept='.txt,.pdf,.docx,.md',
+            multiple=True,
+            description='📂 Choisir plusieurs fichiers',
+            layout={'width': '100%'}
+        )
+        
+        dossier_status = HTML("📎 Aucun fichier sélectionné")
+        uploaded_files = []  # Stocke (filename, content)
+        
+        def on_files_upload(change):
+            nonlocal uploaded_files
+            if dossier_files.value:
+                uploaded_files = []
+                for filename, file_info in dossier_files.value.items():
+                    content = self._read_file_content(file_info['content'], filename)
+                    uploaded_files.append((filename, content))
+                dossier_status.value = f"✅ {len(uploaded_files)} fichier(s) chargé(s)"
+        
+        def execute_analyse_dossier(b):
+            if not uploaded_files:
+                with self.analyse_dossier_output:
+                    clear_output()
+                    display(HTML("<span style='color:red'>❌ Aucun fichier sélectionné</span>"))
+                return
+            
+            if not self.on_analyse_dossier:
+                with self.analyse_dossier_output:
+                    clear_output()
+                    display(HTML("<span style='color:red'>❌ Fonction d'analyse dossier non connectée</span>"))
+                return
+            
+            with self.analyse_dossier_output:
+                clear_output()
+                display(HTML("<div style='text-align:center; padding:20px'><b>📁 Analyse du dossier en cours...</b></div>"))
+            
+            try:
+                # Extraire tous les chemins temporaires
+                import tempfile
+                temp_paths = []
+                for filename, content in uploaded_files:
+                    temp_path = tempfile.NamedTemporaryFile(mode='w', suffix=f"_{filename}", delete=False)
+                    temp_path.write(content)
+                    temp_path.close()
+                    temp_paths.append(temp_path.name)
+                
+                # Appeler la fonction d'analyse
+                result = self.on_analyse_dossier(temp_paths, self.llm)
+                self._display_in_result_tab(result, "Analyse complète du dossier")
+                
+                # Nettoyage
+                for path in temp_paths:
+                    os.unlink(path)
+                    
+            except Exception as e:
+                with self.analyse_dossier_output:
+                    clear_output()
+                    display(HTML(f"<span style='color:red'>❌ Erreur: {str(e)}</span>"))
+        
+        btn_analyser = Button(description="📁 Analyser le dossier complet", button_style='primary', layout={'width': '250px'})
+        btn_analyser.on_click(execute_analyse_dossier)
+        dossier_files.observe(on_files_upload, names='value')
+        
+        return VBox([
+            HTML("<b>📁 Analyse de dossier complet</b>"),
+            HTML("<i>Sélectionnez tous les documents du dossier (PDF, DOCX, TXT)</i>"),
+            HTML("<br><br>"),
+            dossier_files,
+            HTML("<br>"),
+            dossier_status,
+            HTML("<hr>"),
+            HBox([btn_analyser], layout={'justify_content': 'center'}),
+            HTML("<hr>"),
+            self.analyse_dossier_output
         ], layout={'padding': '15px'})
     
     def _build_email_tab(self):
@@ -698,26 +733,6 @@ Avocat au Barreau de {barreau.value}
 """
             apercu.value = f"<pre style='background:#f5f5f5; padding:10px; border-radius:8px'>{preview}</pre>"
         
-
-        # def validate_file(b):
-        #     nonlocal uploaded_content, uploaded_filename
-        #     if source_path.value.strip():
-        #         chemin = source_path.value.strip()
-        #         if os.path.exists(chemin):
-        #             with open(chemin, 'r', encoding='utf-8') as f:
-        #                 self._update_all_sources(f.read(), os.path.basename(chemin))
-        #             source_status.value = f"✅ Fichier Drive validé: {os.path.basename(chemin)}"
-        #         else:
-        #             source_status.value = "❌ Fichier introuvable"
-        #             return
-        #     elif uploaded_content:
-        #         self._update_all_sources(uploaded_content, uploaded_filename)
-        #         source_status.value = f"✅ {uploaded_filename} validé"
-        #     else:
-        #         source_status.value = "❌ Aucun fichier sélectionné"
-        #         return
-        
-
         def validate_file(b):
             nonlocal uploaded_content, uploaded_filename
             if source_path.value.strip():
@@ -806,6 +821,119 @@ Avocat au Barreau de {barreau.value}
             HBox([btn_appliquer], layout={'justify_content': 'center'}),
             HTML("<hr>"),
             self.tampon_output
+        ], layout={'padding': '15px'})
+    
+    def _build_preparer_audience_tab(self):
+        """Onglet Préparation d'audience"""
+        
+        self.audience_output = Output(layout={'width': '100%', 'max_height': '500px', 'overflow_y': 'auto'})
+        
+        type_audience = Dropdown(
+            options=[
+                ("Audience civile", "civile"),
+                ("Audience pénale", "penale"),
+                ("Audience administrative", "administrative")
+            ],
+            description="Type d'audience:",
+            layout={'width': '100%'}
+        )
+        
+        objectif = Textarea(
+            placeholder="Objectif (ex: obtenir nullité, réduire condamnation, obtenir gain de cause...)",
+            layout={'width': '100%', 'height': '80px'}
+        )
+        
+        def execute(b):
+            if not self._current_text:
+                with self.audience_output:
+                    clear_output()
+                    display(HTML("<span style='color:red'>❌ Aucune analyse de dossier. Validez d'abord une source ou analysez un dossier.</span>"))
+                return
+            
+            if not self.on_preparer_audience:
+                with self.audience_output:
+                    clear_output()
+                    display(HTML("<span style='color:red'>❌ Fonction de préparation audience non connectée</span>"))
+                return
+            
+            with self.audience_output:
+                clear_output()
+                display(HTML("<div style='text-align:center; padding:20px'><b>⚖️ Préparation de l'audience en cours...</b></div>"))
+            
+            try:
+                # Signature correcte: prepare_audience(case_analysis, llm_client)
+                result = self.on_preparer_audience(self._current_text, self.llm)
+                self._display_in_result_tab(result, "Préparation d'audience")
+            except Exception as e:
+                with self.audience_output:
+                    clear_output()
+                    display(HTML(f"<span style='color:red'>❌ Erreur: {str(e)}</span>"))
+        
+        btn_preparer = Button(description="⚖️ Préparer l'audience", button_style='primary', layout={'width': '250px'})
+        btn_preparer.on_click(execute)
+        
+        return VBox([
+            self._create_source_section("audience"),
+            HTML("<hr>"),
+            type_audience,
+            objectif,
+            HTML("<br>"),
+            HBox([btn_preparer], layout={'justify_content': 'center'}),
+            HTML("<hr>"),
+            self.audience_output
+        ], layout={'padding': '15px'})
+    
+    def _build_generer_arguments_tab(self):
+        """Onglet Génération d'arguments juridiques"""
+        
+        self.arguments_output = Output(layout={'width': '100%', 'max_height': '500px', 'overflow_y': 'auto'})
+        
+        strategie = Dropdown(
+            options=[
+                ("Défense", "defense"),
+                ("Attaque", "attaque"),
+                ("Neutre / analyse", "neutre")
+            ],
+            description="Stratégie:",
+            layout={'width': '100%'}
+        )
+        
+        def execute(b):
+            if not self._current_text:
+                with self.arguments_output:
+                    clear_output()
+                    display(HTML("<span style='color:red'>❌ Aucun texte source</span>"))
+                return
+            
+            if not self.on_generer_arguments:
+                with self.arguments_output:
+                    clear_output()
+                    display(HTML("<span style='color:red'>❌ Fonction de génération d'arguments non connectée</span>"))
+                return
+            
+            with self.arguments_output:
+                clear_output()
+                display(HTML("<div style='text-align:center; padding:20px'><b>🧠 Génération des arguments en cours...</b></div>"))
+            
+            try:
+                result = self.on_generer_arguments(self._current_text, self.llm)
+                self._display_in_result_tab(result, f"Arguments juridiques - {strategie.value}")
+            except Exception as e:
+                with self.arguments_output:
+                    clear_output()
+                    display(HTML(f"<span style='color:red'>❌ Erreur: {str(e)}</span>"))
+        
+        btn_generer = Button(description="🧠 Générer les arguments", button_style='primary', layout={'width': '250px'})
+        btn_generer.on_click(execute)
+        
+        return VBox([
+            self._create_source_section("arguments"),
+            HTML("<hr>"),
+            strategie,
+            HTML("<br>"),
+            HBox([btn_generer], layout={'justify_content': 'center'}),
+            HTML("<hr>"),
+            self.arguments_output
         ], layout={'padding': '15px'})
     
     def _build_save_section(self):
@@ -903,62 +1031,12 @@ Avocat au Barreau de {barreau.value}
             HTML("<hr>"),
             self._build_save_section()
         ], layout={'padding': '15px'})
-
-    def _build_all_tabs(self):
-        """Construit tous les onglets"""
-        
-        self.tabs = Tab([
-            self._build_config_tab(),
-            self._build_analyse_tab(),
-            self._build_email_tab(),
-            self._build_redaction_tab(),
-            self._build_recherche_tab(),
-            self._build_tampon_tab(),
-            self._build_stt_tab(),        # ← Nouveau
-            self._build_ocr_tab(),        # ← Nouveau
-            self._build_result_tab()
-        ])
-        
-        self.tabs.set_title(0, "⚙️ Configuration")
-        self.tabs.set_title(1, "📊 Analyse & Action")
-        self.tabs.set_title(2, "📧 Email client")
-        self.tabs.set_title(3, "📜 Rédiger actes")
-        self.tabs.set_title(4, "🔍 Recherche")
-        self.tabs.set_title(5, "🖊️ Tampon")
-        self.tabs.set_title(6, "🎤 Dictée")      # ← Nouveau
-        self.tabs.set_title(7, "📄 Scan")        # ← Nouveau
-        self.tabs.set_title(8, "📋 Résultat") 
-
-    def connect(self, analyser=None, conclusions=None, ameliorer=None,
-                email=None, recherche=None, dalloz=None, rediger=None, tampon=None):
-        """
-        Connecte les fonctions de traitement
-        """
-        self.on_analyser = analyser
-        self.on_conclusions = conclusions
-        self.on_ameliorer = ameliorer
-        self.on_email = email
-        self.on_recherche = recherche or dalloz
-        self.on_rediger = rediger
-        self.on_tampon = tampon
     
-    def show(self):
-        """Affiche l'interface"""
-        display(HTML("<h1 style='color:#1a73e8; text-align:center; margin-bottom:20px'>⚖️ Juribot - Interface complète</h1>"))
-        display(self.tabs)
-    
-    def get_current_text(self):
-        return self._current_text
-    
-    def get_last_result(self):
-        return self._last_result
-
     def _build_stt_tab(self):
-        """Onglet Dictée - Version ultra-simple"""
+        """Onglet Dictée vocale"""
         
-        self.stt_output = Output()
+        self.stt_output = Output(layout={'width': '100%', 'max_height': '500px', 'overflow_y': 'auto'})
         
-        # Instructions claires
         instructions = HTML("""
         <div style='background:#e8f0fe; padding:15px; border-radius:10px; margin:10px 0'>
             <b>🎤 Dictée vocale - Méthode simple :</b><br><br>
@@ -975,7 +1053,6 @@ Avocat au Barreau de {barreau.value}
         </div>
         """)
         
-        # Upload de fichier audio
         audio_uploader = FileUpload(
             accept='.wav,.mp3,.m4a,.mpeg',
             multiple=False,
@@ -1010,7 +1087,6 @@ Avocat au Barreau de {barreau.value}
                     with open(temp_path, 'wb') as f:
                         f.write(content)
                     
-                    # Utiliser Groq pour la transcription
                     if hasattr(self.llm, 'client') and hasattr(self.llm.client, 'audio'):
                         with open(temp_path, 'rb') as f:
                             response = self.llm.client.audio.transcriptions.create(
@@ -1055,15 +1131,13 @@ Avocat au Barreau de {barreau.value}
             HTML("<br><b>📝 Transcription :</b>"),
             transcription_text
         ])
-
+    
     def _build_ocr_tab(self):
-        """Onglet PDF scanné"""
+        """Onglet Scan de documents (PDF scannés)"""
         
-        # Widgets
         self.ocr_output = Output(layout={'width': '100%', 'max_height': '500px', 'overflow_y': 'auto'})
         self.ocr_status = HTML("📄 Aucun document")
         
-        # Upload de fichier
         self.ocr_uploader = FileUpload(
             accept='.pdf,.jpg,.png,.jpeg',
             multiple=False,
@@ -1071,18 +1145,15 @@ Avocat au Barreau de {barreau.value}
             layout={'width': '100%'}
         )
         
-        # Bouton d'extraction
         btn_extract = Button(description="🔍 Extraire le texte", 
                             button_style='primary',
                             layout={'width': '250px'})
         
-        # Zone de résultat
         self.ocr_text = Textarea(
             placeholder="Le texte extrait apparaîtra ici...",
             layout={'width': '100%', 'height': '200px'}
         )
         
-        # Stockage du fichier
         self.ocr_content = None
         self.ocr_filename = None
         
@@ -1091,17 +1162,13 @@ Avocat au Barreau de {barreau.value}
                 for filename, file_info in self.ocr_uploader.value.items():
                     self.ocr_filename = filename
                     content = file_info['content']
-                    
-                    # Sauvegarder temporairement
                     temp_path = f"/tmp/{filename}"
                     with open(temp_path, 'wb') as f:
                         f.write(content)
                     self.ocr_content = temp_path
-                    
                     self.ocr_status.value = f"✅ {filename} chargé ({len(content)} octets)"
         
         def on_extract(b):
-            """Extraire le texte du PDF scanné"""
             if not self.ocr_content:
                 self.ocr_status.value = "❌ Aucun document"
                 return
@@ -1111,16 +1178,13 @@ Avocat au Barreau de {barreau.value}
                 display(HTML("<div style='text-align:center; padding:20px'><b>🔍 Extraction en cours...</b></div>"))
             
             try:
-                # Solution 1 : Utiliser GROQ vision (si disponible)
                 if hasattr(self.llm, 'client') and hasattr(self.llm.client, 'chat'):
-                    # Convertir image en base64
                     import base64
                     with open(self.ocr_content, 'rb') as f:
                         image_data = base64.b64encode(f.read()).decode()
                     
-                    # Appel à GPT-4 Vision (ou Llama 3.2 Vision)
                     response = self.llm.client.chat.completions.create(
-                        model="llama-3.2-11b-vision-preview",  # Si dispo
+                        model="llama-3.2-11b-vision-preview",
                         messages=[{
                             "role": "user",
                             "content": [
@@ -1130,21 +1194,17 @@ Avocat au Barreau de {barreau.value}
                         }]
                     )
                     texte_extrait = response.choices[0].message.content
-                
                 else:
-                    # Solution 2 : Instructions pour l'utilisateur (transparent)
                     texte_extrait = """
-    ⚠️ Pour extraire le texte d'un PDF scanné :
+⚠️ Pour extraire le texte d'un PDF scanné :
 
-    1. Ouvrez ce PDF dans Google Drive
-    2. Faites clic droit → "Ouvrir avec Google Docs"
-    3. Copiez le texte généré
-    4. Collez-le ci-dessus
+1. Ouvrez ce PDF dans Google Drive
+2. Faites clic droit → "Ouvrir avec Google Docs"
+3. Copiez le texte généré
+4. Collez-le ci-dessus
 
-    Ou utilisez un outil en ligne gratuit : https://www.ilovepdf.com/fr/pdf_en_texte
-
-    💡 Conseil : Pour vos prochains documents, privilégiez un PDF "texte" (export Word/Google Doc) plutôt que scanné.
-    """
+Ou utilisez un outil en ligne gratuit : https://www.ilovepdf.com/fr/pdf_en_texte
+"""
                 
                 self.ocr_text.value = texte_extrait
                 self._current_text = texte_extrait
@@ -1167,7 +1227,7 @@ Avocat au Barreau de {barreau.value}
         btn_extract.on_click(on_extract)
         
         return VBox([
-            HTML("<b>📄 Scanner un PDF</b>"),
+            HTML("<b>📄 Scanner un document</b>"),
             HTML("<i>Importez un PDF scanné ou une photo de document</i>"),
             HTML("<br>"),
             self.ocr_uploader,
@@ -1177,8 +1237,65 @@ Avocat au Barreau de {barreau.value}
             self.ocr_status,
             HTML("<br>"),
             HTML("<b>📝 Texte extrait :</b>"),
-            self.ocr_text,
-            HTML("<br><hr><br>"),
-            HTML("<b>📊 Analyse automatique :</b>"),
-            HTML("<i>Après extraction, utilisez l'onglet 'Analyse & Action'</i>")
+            self.ocr_text
         ])
+    
+    def _build_all_tabs(self):
+        """Construit tous les onglets"""
+        
+        self.tabs = Tab([
+            self._build_config_tab(),           # 0: Configuration
+            self._build_analyse_tab(),          # 1: Analyse & Action
+            self._build_analyse_dossier_tab(),  # 2: Analyse dossier complet
+            self._build_preparer_audience_tab(),# 3: Préparation audience
+            self._build_generer_arguments_tab(),# 4: Génération arguments
+            self._build_email_tab(),            # 5: Email client
+            self._build_redaction_tab(),        # 6: Rédaction actes
+            self._build_recherche_tab(),        # 7: Recherche
+            self._build_tampon_tab(),           # 8: Tampon
+            self._build_stt_tab(),              # 9: Dictée vocale
+            self._build_ocr_tab(),              # 10: Scan documents
+            self._build_result_tab()            # 11: Résultat
+        ])
+        
+        self.tabs.set_title(0, "⚙️ Configuration")
+        self.tabs.set_title(1, "📊 Analyse & Action")
+        self.tabs.set_title(2, "📁 Analyse dossier")
+        self.tabs.set_title(3, "⚖️ Préparer audience")
+        self.tabs.set_title(4, "🧠 Arguments")
+        self.tabs.set_title(5, "📧 Email client")
+        self.tabs.set_title(6, "📜 Rédiger actes")
+        self.tabs.set_title(7, "🔍 Recherche")
+        self.tabs.set_title(8, "🖊️ Tampon")
+        self.tabs.set_title(9, "🎤 Dictée")
+        self.tabs.set_title(10, "📄 Scan")
+        self.tabs.set_title(11, "📋 Résultat")
+    
+    def connect(self, analyser=None, conclusions=None, ameliorer=None,
+                email=None, recherche=None, dalloz=None, rediger=None, 
+                tampon=None, analyse_dossier=None, preparer_audience=None,
+                generer_arguments=None):
+        """
+        Connecte les fonctions de traitement
+        """
+        self.on_analyser = analyser
+        self.on_conclusions = conclusions
+        self.on_ameliorer = ameliorer
+        self.on_email = email
+        self.on_recherche = recherche or dalloz
+        self.on_rediger = rediger
+        self.on_tampon = tampon
+        self.on_analyse_dossier = analyse_dossier
+        self.on_preparer_audience = preparer_audience
+        self.on_generer_arguments = generer_arguments
+    
+    def show(self):
+        """Affiche l'interface"""
+        display(HTML("<h1 style='color:#1a73e8; text-align:center; margin-bottom:20px'>⚖️ Juribot - Interface complète</h1>"))
+        display(self.tabs)
+    
+    def get_current_text(self):
+        return self._current_text
+    
+    def get_last_result(self):
+        return self._last_result
