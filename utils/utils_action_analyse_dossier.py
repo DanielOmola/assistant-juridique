@@ -1,135 +1,6 @@
-from pypdf import PdfReader
-import os
-import docx
 from utils.utils_logging import get_logger
 
 logger = get_logger(__name__)
-
-
-# 📄 EXTRACTION PDF
-def extract_text_from_pdf(file_path: str) -> str:
-    """Extrait le texte d'un fichier PDF"""
-    
-    logger.info(f"📄 Extraction PDF: {file_path}")
-    
-    try:
-        reader = PdfReader(file_path)
-        text = ""
-
-        for page in reader.pages:
-            try:
-                page_text = page.extract_text()
-                if page_text:
-                    text += page_text + "\n"
-            except Exception as e:
-                logger.warning(f"⚠️ Erreur extraction page: {str(e)}")
-                continue
-
-        if not text.strip():
-            logger.warning(f"⚠️ Aucun texte extrait du PDF: {file_path}")
-
-        logger.info(f"✅ Extraction réussie - {len(text)} caractères")
-        return text
-
-    except FileNotFoundError:
-        logger.error(f"❌ Fichier PDF introuvable: {file_path}")
-        return ""
-    except PermissionError:
-        logger.error(f"❌ Permission refusée pour: {file_path}")
-        return ""
-    except Exception as e:
-        logger.error(f"❌ Erreur extraction PDF: {str(e)}")
-        return ""
-
-
-# 📄 EXTRACTION DOCX
-def extract_text_from_docx(file_path: str) -> str:
-    """Extrait le texte d'un fichier DOCX"""
-    
-    logger.info(f"📄 Extraction DOCX: {file_path}")
-    
-    try:
-        doc = docx.Document(file_path)
-        text = "\n".join([para.text for para in doc.paragraphs])
-        
-        if not text.strip():
-            logger.warning(f"⚠️ Aucun texte extrait du DOCX: {file_path}")
-        
-        logger.info(f"✅ Extraction réussie - {len(text)} caractères")
-        return text
-        
-    except FileNotFoundError:
-        logger.error(f"❌ Fichier DOCX introuvable: {file_path}")
-        return ""
-    except PermissionError:
-        logger.error(f"❌ Permission refusée pour: {file_path}")
-        return ""
-    except Exception as e:
-        logger.error(f"❌ Erreur extraction DOCX: {str(e)}")
-        return ""
-
-
-# 📄 EXTRACTION TXT
-def extract_text_from_txt(file_path: str) -> str:
-    """Extrait le texte d'un fichier TXT"""
-    
-    logger.info(f"📄 Extraction TXT: {file_path}")
-    
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            text = f.read()
-        
-        if not text.strip():
-            logger.warning(f"⚠️ Aucun texte extrait du TXT: {file_path}")
-        
-        logger.info(f"✅ Extraction réussie - {len(text)} caractères")
-        return text
-        
-    except FileNotFoundError:
-        logger.error(f"❌ Fichier TXT introuvable: {file_path}")
-        return ""
-    except UnicodeDecodeError:
-        # Essayer avec un autre encodage
-        try:
-            with open(file_path, 'r', encoding='latin-1') as f:
-                text = f.read()
-            logger.info(f"✅ Extraction avec latin-1 - {len(text)} caractères")
-            return text
-        except Exception as e:
-            logger.error(f"❌ Erreur décodage TXT: {str(e)}")
-            return ""
-    except PermissionError:
-        logger.error(f"❌ Permission refusée pour: {file_path}")
-        return ""
-    except Exception as e:
-        logger.error(f"❌ Erreur extraction TXT: {str(e)}")
-        return ""
-
-
-# 📄 EXTRACTION MULTI-FORMATS (FONCTION PRINCIPALE)
-def extract_text_from_file(file_path: str) -> str:
-    """Extrait le texte d'un fichier selon son extension"""
-    
-    if not os.path.exists(file_path):
-        logger.error(f"❌ Fichier introuvable: {file_path}")
-        return ""
-    
-    ext = os.path.splitext(file_path)[1].lower()
-    
-    try:
-        if ext == '.pdf':
-            return extract_text_from_pdf(file_path)
-        elif ext == '.docx':
-            return extract_text_from_docx(file_path)
-        elif ext == '.txt':
-            return extract_text_from_txt(file_path)
-        else:
-            logger.warning(f"⚠️ Format non supporté: {ext} pour {file_path}")
-            return f"❌ Format non supporté: {ext}"
-            
-    except Exception as e:
-        logger.error(f"❌ Erreur inattendue extraction {file_path}: {str(e)}")
-        return ""
 
 
 # ✂️ CHUNKING
@@ -170,7 +41,7 @@ def analyze_chunk(chunk: str, llm_client) -> str:
         return ""
 
     prompt = f"""
-Analyse ce passage d’un dossier juridique et extrais :
+Analyse ce passage d'un dossier juridique et extrais :
 - faits importants
 - éléments juridiques
 - points de tension
@@ -301,47 +172,40 @@ Analyses :
 
 
 # 🚀 ANALYSE COMPLÈTE DOSSIER
-def analyse_dossier(pdf_paths: list, llm_client) -> str:
-    """Pipeline complet d'analyse d'un dossier juridique"""
-
-    logger.info(f"⚖️ Analyse dossier - {len(pdf_paths)} fichier(s)")
+def analyse_dossier(textes: list, llm_client) -> str:
+    """Analyse un dossier juridique à partir de textes déjà extraits
+    
+    Args:
+        textes: Liste de textes (contenu des documents déjà extraits par l'interface)
+        llm_client: Client LLM
+    """
+    logger.info(f"⚖️ Analyse dossier - {len(textes)} document(s)")
 
     # Vérifications initiales
-    if not pdf_paths:
-        logger.error("❌ Aucun fichier fourni")
-        return "❌ Erreur: Aucun fichier fourni"
+    if not textes:
+        logger.error("❌ Aucun texte fourni")
+        return "❌ Erreur: Aucun texte fourni"
 
     if not llm_client:
         logger.error("❌ Client LLM non disponible")
         return "❌ Erreur: Client LLM non disponible"
 
     try:
-        # 1. Extraction multi-format
-        all_text = ""
-        failed_files = []
-        
-        for path in pdf_paths:
-            text = extract_text_from_file(path)
-            if text:
-                all_text += text + "\n\n"
-            else:
-                failed_files.append(os.path.basename(path))
-
-        if failed_files:
-            logger.warning(f"⚠️ {len(failed_files)} fichier(s) non extraits: {failed_files}")
+        # 1. Concaténer tous les textes (déjà extraits par l'interface)
+        all_text = "\n\n".join([t for t in textes if t and t.strip()])
 
         if not all_text.strip():
-            logger.error("❌ Aucun texte extrait")
-            return "❌ Erreur: Impossible d'extraire le contenu des fichiers"
+            logger.error("❌ Aucun texte valide")
+            return "❌ Erreur: Aucun contenu valide"
 
-        logger.info(f"📝 Texte total extrait: {len(all_text)} caractères")
+        logger.info(f"📝 Texte total: {len(all_text)} caractères")
 
         # 2. Chunking
         chunks = split_text(all_text)
 
         if not chunks:
             logger.error("❌ Aucun chunk généré")
-            return "❌ Erreur: Échec du découpage du texte"
+            return "❌ Erreur: Échec du découpage"
 
         logger.info(f"📊 {len(chunks)} chunks à analyser")
 

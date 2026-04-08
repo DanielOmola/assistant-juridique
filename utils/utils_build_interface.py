@@ -1,7 +1,7 @@
 """
 tabbed_ui_complete.py - Interface à onglets complète pour Jupyter Notebook
 """
-
+from utils.utils_logging import get_logger
 from IPython.display import display, clear_output, Javascript
 from ipywidgets import (
     Tab, VBox, HBox, Textarea, Button, Output, 
@@ -13,6 +13,7 @@ from datetime import datetime
 import re
 import webbrowser
 
+logger = get_logger(__name__)
 _css_applied = False
 
 class QuickTabbedUI:
@@ -399,7 +400,8 @@ class QuickTabbedUI:
             HTML("<hr>"),
             self.analyse_output
         ], layout={'padding': '15px'})
-    
+
+
     def _build_analyse_dossier_tab(self):
         """Onglet Analyse de dossier complet (multi-documents)"""
         
@@ -414,19 +416,19 @@ class QuickTabbedUI:
         )
         
         dossier_status = HTML("📎 Aucun fichier sélectionné")
-        uploaded_files = []  # Stocke (filename, content)
+        uploaded_texts = []
         
         def on_files_upload(change):
-            nonlocal uploaded_files
+            nonlocal uploaded_texts
             if dossier_files.value:
-                uploaded_files = []
+                uploaded_texts = []
                 for filename, file_info in dossier_files.value.items():
                     content = self._read_file_content(file_info['content'], filename)
-                    uploaded_files.append((filename, content))
-                dossier_status.value = f"✅ {len(uploaded_files)} fichier(s) chargé(s)"
+                    uploaded_texts.append(content)
+                dossier_status.value = f"✅ {len(uploaded_texts)} fichier(s) chargé(s)"
         
         def execute_analyse_dossier(b):
-            if not uploaded_files:
+            if not uploaded_texts:
                 with self.analyse_dossier_output:
                     clear_output()
                     display(HTML("<span style='color:red'>❌ Aucun fichier sélectionné</span>"))
@@ -443,23 +445,9 @@ class QuickTabbedUI:
                 display(HTML("<div style='text-align:center; padding:20px'><b>📁 Analyse du dossier en cours...</b></div>"))
             
             try:
-                # Extraire tous les chemins temporaires
-                import tempfile
-                temp_paths = []
-                for filename, content in uploaded_files:
-                    temp_path = tempfile.NamedTemporaryFile(mode='w', suffix=f"_{filename}", delete=False)
-                    temp_path.write(content)
-                    temp_path.close()
-                    temp_paths.append(temp_path.name)
-                
-                # Appeler la fonction d'analyse
-                result = self.on_analyse_dossier(temp_paths, self.llm)
+                # Appeler la fonction connectée
+                result = self.on_analyse_dossier(uploaded_texts, self.llm)
                 self._display_in_result_tab(result, "Analyse complète du dossier")
-                
-                # Nettoyage
-                for path in temp_paths:
-                    os.unlink(path)
-                    
             except Exception as e:
                 with self.analyse_dossier_output:
                     clear_output()
@@ -480,8 +468,8 @@ class QuickTabbedUI:
             HBox([btn_analyser], layout={'justify_content': 'center'}),
             HTML("<hr>"),
             self.analyse_dossier_output
-        ], layout={'padding': '15px'})
-    
+        ], layout={'padding': '15px'})    
+
     def _build_email_tab(self):
         """Onglet Email client"""
         
