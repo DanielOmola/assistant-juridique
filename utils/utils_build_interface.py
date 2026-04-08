@@ -251,7 +251,11 @@ class QuickTabbedUI:
                 """))
         
         # Basculer vers l'onglet résultat
-        self.tabs.selected_index = 6
+        # Trouver l'index de l'onglet Résultat
+        for i in range(len(self.tabs.children)):
+            if self.tabs.get_title(i) == "📋 Résultat":
+                self.tabs.selected_index = i
+                break
     
     def _build_config_tab(self):
         """Onglet Configuration"""
@@ -899,7 +903,7 @@ Avocat au Barreau de {barreau.value}
             HTML("<hr>"),
             self._build_save_section()
         ], layout={'padding': '15px'})
-    
+
     def _build_all_tabs(self):
         """Construit tous les onglets"""
         
@@ -910,6 +914,8 @@ Avocat au Barreau de {barreau.value}
             self._build_redaction_tab(),
             self._build_recherche_tab(),
             self._build_tampon_tab(),
+            self._build_stt_tab(),        # ← Nouveau
+            self._build_ocr_tab(),        # ← Nouveau
             self._build_result_tab()
         ])
         
@@ -919,8 +925,10 @@ Avocat au Barreau de {barreau.value}
         self.tabs.set_title(3, "📜 Rédiger actes")
         self.tabs.set_title(4, "🔍 Recherche")
         self.tabs.set_title(5, "🖊️ Tampon")
-        self.tabs.set_title(6, "📋 Résultat")
-    
+        self.tabs.set_title(6, "🎤 Dictée")      # ← Nouveau
+        self.tabs.set_title(7, "📄 Scan")        # ← Nouveau
+        self.tabs.set_title(8, "📋 Résultat") 
+
     def connect(self, analyser=None, conclusions=None, ameliorer=None,
                 email=None, recherche=None, dalloz=None, rediger=None, tampon=None):
         """
@@ -944,3 +952,233 @@ Avocat au Barreau de {barreau.value}
     
     def get_last_result(self):
         return self._last_result
+
+    def _build_stt_tab(self):
+        """Onglet Dictée - Version ultra-simple"""
+        
+        self.stt_output = Output()
+        
+        # Instructions claires
+        instructions = HTML("""
+        <div style='background:#e8f0fe; padding:15px; border-radius:10px; margin:10px 0'>
+            <b>🎤 Dictée vocale - Méthode simple :</b><br><br>
+            <b>Option 1 : Téléphone (recommandé)</b><br>
+            1. Enregistrez-vous avec l'appli "Dictaphone" de votre téléphone<br>
+            2. Envoyez-vous le fichier par email / WhatsApp / Drive<br>
+            3. Téléchargez-le ci-dessous<br>
+            4. Cliquez sur "Transcrire"<br><br>
+            <b>Option 2 : En direct sur l'ordinateur</b><br>
+            1. Utilisez l'outil "Dictée" intégré de Windows/Mac (Win+H ou Cmd+Shift+D)<br>
+            2. Dictez votre texte directement dans la zone ci-dessous<br>
+            3. Puis cliquez sur "Analyser"<br><br>
+            <b>💡 Astuce :</b> La transcription est plus précise avec un fichier audio de bonne qualité.
+        </div>
+        """)
+        
+        # Upload de fichier audio
+        audio_uploader = FileUpload(
+            accept='.wav,.mp3,.m4a,.mpeg',
+            multiple=False,
+            description='📂 Choisir un fichier audio',
+            layout={'width': '100%'}
+        )
+        
+        btn_transcribe = Button(description="📝 Transcrire l'audio", 
+                                button_style='primary',
+                                layout={'width': '250px'})
+        
+        transcription_text = Textarea(
+            placeholder="La transcription apparaîtra ici...",
+            layout={'width': '100%', 'height': '150px'}
+        )
+        
+        def on_transcribe(b):
+            if not audio_uploader.value:
+                with self.stt_output:
+                    clear_output()
+                    display(HTML("<span style='color:red'>❌ Aucun fichier audio</span>"))
+                return
+            
+            with self.stt_output:
+                clear_output()
+                display(HTML("<div style='text-align:center;padding:20px'><b>📝 Transcription en cours...</b></div>"))
+            
+            try:
+                for filename, file_info in audio_uploader.value.items():
+                    content = file_info['content']
+                    temp_path = f"/tmp/{filename}"
+                    with open(temp_path, 'wb') as f:
+                        f.write(content)
+                    
+                    # Utiliser Groq pour la transcription
+                    if hasattr(self.llm, 'client') and hasattr(self.llm.client, 'audio'):
+                        with open(temp_path, 'rb') as f:
+                            response = self.llm.client.audio.transcriptions.create(
+                                model="whisper-large-v3",
+                                file=f,
+                                language="fr"
+                            )
+                        transcription = response.text
+                        transcription_text.value = transcription
+                        self._current_text = transcription
+                        
+                        with self.stt_output:
+                            clear_output()
+                            display(HTML(f"""
+                            <div class='result-box'>
+                                <div style='font-weight:bold;color:#1a73e8'>✅ Transcription</div>
+                                <hr>
+                                <div style='white-space:pre-wrap'>{transcription}</div>
+                            </div>
+                            """))
+                    else:
+                        with self.stt_output:
+                            clear_output()
+                            display(HTML("<span style='color:orange'>⚠️ API de transcription non configurée</span>"))
+                            
+            except Exception as e:
+                with self.stt_output:
+                    clear_output()
+                    display(HTML(f"<span style='color:red'>❌ Erreur: {str(e)}</span>"))
+        
+        btn_transcribe.on_click(on_transcribe)
+        
+        return VBox([
+            HTML("<b>🎤 Dictée vocale</b>"),
+            instructions,
+            HTML("<br><b>📁 Upload audio :</b>"),
+            audio_uploader,
+            HTML("<br>"),
+            HBox([btn_transcribe], layout={'justify_content': 'center'}),
+            HTML("<br>"),
+            self.stt_output,
+            HTML("<br><b>📝 Transcription :</b>"),
+            transcription_text
+        ])
+
+    def _build_ocr_tab(self):
+        """Onglet PDF scanné"""
+        
+        # Widgets
+        self.ocr_output = Output(layout={'width': '100%', 'max_height': '500px', 'overflow_y': 'auto'})
+        self.ocr_status = HTML("📄 Aucun document")
+        
+        # Upload de fichier
+        self.ocr_uploader = FileUpload(
+            accept='.pdf,.jpg,.png,.jpeg',
+            multiple=False,
+            description='📂 Choisir un PDF scanné ou une photo',
+            layout={'width': '100%'}
+        )
+        
+        # Bouton d'extraction
+        btn_extract = Button(description="🔍 Extraire le texte", 
+                            button_style='primary',
+                            layout={'width': '250px'})
+        
+        # Zone de résultat
+        self.ocr_text = Textarea(
+            placeholder="Le texte extrait apparaîtra ici...",
+            layout={'width': '100%', 'height': '200px'}
+        )
+        
+        # Stockage du fichier
+        self.ocr_content = None
+        self.ocr_filename = None
+        
+        def on_upload_change(change):
+            if self.ocr_uploader.value:
+                for filename, file_info in self.ocr_uploader.value.items():
+                    self.ocr_filename = filename
+                    content = file_info['content']
+                    
+                    # Sauvegarder temporairement
+                    temp_path = f"/tmp/{filename}"
+                    with open(temp_path, 'wb') as f:
+                        f.write(content)
+                    self.ocr_content = temp_path
+                    
+                    self.ocr_status.value = f"✅ {filename} chargé ({len(content)} octets)"
+        
+        def on_extract(b):
+            """Extraire le texte du PDF scanné"""
+            if not self.ocr_content:
+                self.ocr_status.value = "❌ Aucun document"
+                return
+            
+            with self.ocr_output:
+                clear_output()
+                display(HTML("<div style='text-align:center; padding:20px'><b>🔍 Extraction en cours...</b></div>"))
+            
+            try:
+                # Solution 1 : Utiliser GROQ vision (si disponible)
+                if hasattr(self.llm, 'client') and hasattr(self.llm.client, 'chat'):
+                    # Convertir image en base64
+                    import base64
+                    with open(self.ocr_content, 'rb') as f:
+                        image_data = base64.b64encode(f.read()).decode()
+                    
+                    # Appel à GPT-4 Vision (ou Llama 3.2 Vision)
+                    response = self.llm.client.chat.completions.create(
+                        model="llama-3.2-11b-vision-preview",  # Si dispo
+                        messages=[{
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": "Extrais tout le texte de ce document juridique."},
+                                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_data}"}}
+                            ]
+                        }]
+                    )
+                    texte_extrait = response.choices[0].message.content
+                
+                else:
+                    # Solution 2 : Instructions pour l'utilisateur (transparent)
+                    texte_extrait = """
+    ⚠️ Pour extraire le texte d'un PDF scanné :
+
+    1. Ouvrez ce PDF dans Google Drive
+    2. Faites clic droit → "Ouvrir avec Google Docs"
+    3. Copiez le texte généré
+    4. Collez-le ci-dessus
+
+    Ou utilisez un outil en ligne gratuit : https://www.ilovepdf.com/fr/pdf_en_texte
+
+    💡 Conseil : Pour vos prochains documents, privilégiez un PDF "texte" (export Word/Google Doc) plutôt que scanné.
+    """
+                
+                self.ocr_text.value = texte_extrait
+                self._current_text = texte_extrait
+                self.ocr_status.value = "✅ Texte extrait avec succès"
+                
+                with self.ocr_output:
+                    clear_output()
+                    display(HTML(f"""
+                    <div class='result-box'>
+                        <div style='font-weight:bold; color:#1a73e8'>📄 Texte extrait</div>
+                        <hr>
+                        <div style='white-space:pre-wrap; max-height:400px; overflow-y:auto'>{texte_extrait[:3000]}</div>
+                    </div>
+                    """))
+                    
+            except Exception as e:
+                self.ocr_status.value = f"❌ Erreur: {str(e)}"
+        
+        self.ocr_uploader.observe(on_upload_change, names='value')
+        btn_extract.on_click(on_extract)
+        
+        return VBox([
+            HTML("<b>📄 Scanner un PDF</b>"),
+            HTML("<i>Importez un PDF scanné ou une photo de document</i>"),
+            HTML("<br>"),
+            self.ocr_uploader,
+            HTML("<br>"),
+            HBox([btn_extract], layout={'justify_content': 'center'}),
+            HTML("<br>"),
+            self.ocr_status,
+            HTML("<br>"),
+            HTML("<b>📝 Texte extrait :</b>"),
+            self.ocr_text,
+            HTML("<br><hr><br>"),
+            HTML("<b>📊 Analyse automatique :</b>"),
+            HTML("<i>Après extraction, utilisez l'onglet 'Analyse & Action'</i>")
+        ])
