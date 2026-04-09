@@ -1,0 +1,108 @@
+name: Build and Deploy Wheels
+
+on:
+  push:
+    branches: [main, master]
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build wheels for Colab
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install build tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install build wheel
+    
+    - name: Install build dependencies
+      run: |
+        # Install requirements needed to BUILD the wheel
+        if [ -f "requirements-build.txt" ]; then
+          pip install -r requirements-build.txt
+        fi
+    
+    - name: Build wheel
+      run: |
+        python -m build --wheel
+    
+    - name: Verify wheel includes runtime dependencies
+      run: |
+        # Check that runtime dependencies are properly declared
+        unzip -l dist/*.whl | grep "METADATA" || echo "Warning: METADATA not found"
+    
+    - name: Get wheel filename
+      id: wheel
+      run: |
+        cd dist
+        echo "filename=$(ls *.whl)" >> $GITHUB_OUTPUT
+        echo "path=dist/$(ls *.whl)" >> $GITHUB_OUTPUT
+    
+    - name: Upload to GitHub Release (if tag)
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: ${{ steps.wheel.outputs.path }}
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Upload to GitHub Pages
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: dist/
+    
+    - name: Create simple index.html for pip
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      run: |
+        mkdir -p pages
+        cp dist/*.whl pages/
+        # Also upload requirements.txt for reference
+        if [ -f "requirements.txt" ]; then
+          cp requirements.txt pages/
+        fi
+        cd pages
+        echo "<html><body>" > index.html
+        echo "<h2>Wheels</h2>" >> index.html
+        for f in *.whl; do
+          echo "<a href=\"$f\">$f</a><br>" >> index.html
+        done
+        if [ -f "requirements.txt" ]; then
+          echo "<h2>Requirements</h2>" >> index.html
+          echo "<a href=\"requirements.txt\">requirements.txt</a><br>" >> index.html
+        fi
+        echo "</body></html>" >> index.html
+    
+    - name: Upload pages with index
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: pages/
+
+  deploy-pages:
+    needs: build
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
