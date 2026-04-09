@@ -64,9 +64,11 @@ fi
 print_step "Copie des fichiers..."
 
 # Copier les notebooks
-cp /tmp/temp_repo/01_backend_llm.ipynb "$DRIVE_PATH/" 2>/dev/null || true
-cp /tmp/temp_repo/02_frontend.ipynb "$DRIVE_PATH/" 2>/dev/null || true
-cp /tmp/temp_repo/02_frontend_TEST.ipynb "$DRIVE_PATH/" 2>/dev/null || true
+# cp /tmp/temp_repo/01_backend_llm.ipynb "$DRIVE_PATH/" 2>/dev/null || true
+# cp /tmp/temp_repo/02_frontend.ipynb "$DRIVE_PATH/" 2>/dev/null || true
+# cp /tmp/temp_repo/02_frontend_TEST.ipynb "$DRIVE_PATH/" 2>/dev/null || true
+cp /tmp/temp_repo/BACKEND.ipynb "$DRIVE_PATH/" 2>/dev/null || true
+cp /tmp/temp_repo/JURIBOT.ipynb "$DRIVE_PATH/" 2>/dev/null || true
 
 # Copier setup.py
 cp /tmp/temp_repo/setup.py "$DRIVE_PATH/" 2>/dev/null || true
