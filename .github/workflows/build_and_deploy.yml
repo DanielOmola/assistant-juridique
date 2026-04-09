@@ -1,5 +1,8 @@
 name: Build and Deploy Wheels
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true  # Optional: force Node.js 24 now
+
 on:
   push:
     branches: [main, master]
@@ -13,12 +16,12 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v4.2.2
       with:
         fetch-depth: 0
     
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v5.4.0
       with:
         python-version: '3.11'
     
@@ -27,21 +30,9 @@ jobs:
         python -m pip install --upgrade pip
         pip install build wheel
     
-    - name: Install build dependencies
-      run: |
-        # Install requirements needed to BUILD the wheel
-        if [ -f "requirements-build.txt" ]; then
-          pip install -r requirements-build.txt
-        fi
-    
     - name: Build wheel
       run: |
         python -m build --wheel
-    
-    - name: Verify wheel includes runtime dependencies
-      run: |
-        # Check that runtime dependencies are properly declared
-        unzip -l dist/*.whl | grep "METADATA" || echo "Warning: METADATA not found"
     
     - name: Get wheel filename
       id: wheel
@@ -50,45 +41,42 @@ jobs:
         echo "filename=$(ls *.whl)" >> $GITHUB_OUTPUT
         echo "path=dist/$(ls *.whl)" >> $GITHUB_OUTPUT
     
-    - name: Upload to GitHub Release (if tag)
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4.6.2
+      with:
+        name: wheels-${{ github.sha }}
+        path: dist/*.whl
+        retention-days: 7
+    
+    - name: Upload to GitHub Release
       if: startsWith(github.ref, 'refs/tags/')
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         files: ${{ steps.wheel.outputs.path }}
         generate_release_notes: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
-    - name: Upload to GitHub Pages
-      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-      uses: actions/upload-pages-artifact@v3
-      with:
-        path: dist/
-    
-    - name: Create simple index.html for pip
+    - name: Prepare GitHub Pages
       if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
       run: |
         mkdir -p pages
         cp dist/*.whl pages/
-        # Also upload requirements.txt for reference
-        if [ -f "requirements.txt" ]; then
-          cp requirements.txt pages/
-        fi
+        [ -f "requirements.txt" ] && cp requirements.txt pages/
         cd pages
-        echo "<html><body>" > index.html
-        echo "<h2>Wheels</h2>" >> index.html
+        cat > index.html << 'EOF'
+        <html><body>
+        <h2>Wheels</h2>
+        EOF
         for f in *.whl; do
           echo "<a href=\"$f\">$f</a><br>" >> index.html
         done
-        if [ -f "requirements.txt" ]; then
-          echo "<h2>Requirements</h2>" >> index.html
-          echo "<a href=\"requirements.txt\">requirements.txt</a><br>" >> index.html
-        fi
+        [ -f "requirements.txt" ] && echo "<h2>Requirements</h2><a href=\"requirements.txt\">requirements.txt</a><br>" >> index.html
         echo "</body></html>" >> index.html
     
-    - name: Upload pages with index
+    - name: Upload to GitHub Pages
       if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-      uses: actions/upload-pages-artifact@v3
+      uses: actions/upload-pages-artifact@v3.0.1
       with:
         path: pages/
 
@@ -105,4 +93,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v4.0.5
