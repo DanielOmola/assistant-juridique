@@ -21,8 +21,9 @@ class QuickTabbedUI:
     Interface à onglets complète
     """
     
-    def __init__(self, llm_client=None):
+    def __init__(self, llm_client=None, prompt_templates=None):
         self.llm = llm_client
+        self.prompt_templates = prompt_templates
         self._current_text = None
         self._current_filename = None
         self._last_result = None
@@ -1227,7 +1228,119 @@ Ou utilisez un outil en ligne gratuit : https://www.ilovepdf.com/fr/pdf_en_texte
             HTML("<b>📝 Texte extrait :</b>"),
             self.ocr_text
         ])
-    
+        
+
+    def _build_generer_prompt_tab(self):
+        """Onglet Génération de prompt pour GenIA-L"""
+        
+        self.prompt_output = Output(layout={'width': '100%', 'max_height': '500px', 'overflow_y': 'auto'})
+        
+        # Dropdown pour choisir le type de prompt
+        prompt_type_dropdown = Dropdown(
+            options=list(self.prompt_templates.keys()) if self.prompt_templates else [],
+            description="📋 Type de prompt:",
+            layout={'width': '100%'},
+            style={'description_width': 'initial'}
+        )
+        
+        # Label pour afficher la description du template sélectionné
+        template_description = HTML("<i>Sélectionnez un type de prompt pour voir sa description</i>")
+        
+        situation_text = Textarea(
+            placeholder="Décrivez votre situation juridique ici...\n\nExemples:\n- Client victime d'un accident de la route\n- Litige commercial avec un fournisseur\n- Problème de voisinage\n- Contrat de travail contesté\n- etc.",
+            layout={'width': '100%', 'height': '200px'}
+        )
+        
+        btn_generer = Button(
+            description="🎯 Générer le prompt",
+            button_style='primary',
+            layout={'width': '250px'}
+        )
+        
+        # Fonction pour mettre à jour la description
+        def update_description(change):
+            if self.prompt_templates and change['new'] in self.prompt_templates:
+                template_info = self.prompt_templates[change['new']]
+                desc = template_info.get('description', 'Pas de description disponible')
+                template_description.value = f"""
+                <div style='background:#f0f7ff; padding:10px; border-radius:8px; margin:5px 0'>
+                    <b>📖 Description :</b><br>
+                    {desc}
+                </div>
+                """
+        
+        def on_generate(b):
+            if not self.on_generer_prompt:
+                with self.prompt_output:
+                    clear_output()
+                    display(HTML("<span style='color:red'>❌ Fonction de génération non connectée</span>"))
+                return
+            
+            texte_situation = situation_text.value.strip()
+            if not texte_situation:
+                with self.prompt_output:
+                    clear_output()
+                    display(HTML("<span style='color:red'>❌ Veuillez décrire une situation</span>"))
+                return
+            
+            with self.prompt_output:
+                clear_output()
+                display(HTML("<div style='text-align:center; padding:20px'><b>🎯 Génération du prompt en cours...</b></div>"))
+            
+            try:
+                # Appel à la fonction connectée (genere_prompt)
+                prompt_genere = self.on_generer_prompt(prompt_type_dropdown.value, texte_situation)
+                
+                # 👇 AFFICHER DANS L'ONGLET RÉSULTAT (dernier onglet)
+                self._display_in_result_tab(prompt_genere, f"Prompt GenIA-L - {prompt_type_dropdown.value}")
+                
+                # Aussi afficher dans l'output local si vous voulez
+                with self.prompt_output:
+                    clear_output()
+                    display(HTML(f"""
+                    <div class='result-box'>
+                        <div style='font-weight:bold; color:#1a73e8'>✅ Prompt généré avec succès</div>
+                        <hr>
+                        <div><b>Type:</b> {prompt_type_dropdown.value}</div>
+                        <div><b>Situation:</b> {texte_situation[:100]}...</div>
+                        <hr>
+                        <div style='background:#f5f5f5; padding:10px; border-radius:5px; font-family:monospace; white-space:pre-wrap; max-height:300px; overflow-y:auto'>
+                            {prompt_genere}
+                        </div>
+                        <br>
+                        <div style='color:#1a73e8'>💡 Le prompt a été copié dans l'onglet "📋 Résultat"</div>
+                    </div>
+                    """))
+                    
+            except Exception as e:
+                with self.prompt_output:
+                    clear_output()
+                    display(HTML(f"<span style='color:red'>❌ Erreur: {str(e)}</span>"))
+        
+        # Observer les changements de type de prompt
+        prompt_type_dropdown.observe(update_description, names='value')
+        
+        # Initialiser la description
+        if self.prompt_templates and len(self.prompt_templates) > 0:
+            first_key = list(self.prompt_templates.keys())[0]
+            update_description({'new': first_key})
+        
+        btn_generer.on_click(on_generate)
+        
+        return VBox([
+            HTML("<b>🎯 Générateur de prompts pour GenIA-L</b>"),
+            HTML("<i>Créez des prompts optimisés pour la recherche juridique avec GenIA-L</i>"),
+            HTML("<hr>"),
+            prompt_type_dropdown,
+            template_description,
+            HTML("<br><b>📝 Décrivez votre situation juridique :</b>"),
+            situation_text,
+            HTML("<br>"),
+            HBox([btn_generer], layout={'justify_content': 'center'}),
+            HTML("<hr>"),
+            self.prompt_output
+        ], layout={'padding': '15px'})
+
     def _build_all_tabs(self):
         """Construit tous les onglets"""
         
@@ -1237,13 +1350,14 @@ Ou utilisez un outil en ligne gratuit : https://www.ilovepdf.com/fr/pdf_en_texte
             self._build_analyse_dossier_tab(),  # 2: Analyse dossier complet
             self._build_preparer_audience_tab(),# 3: Préparation audience
             self._build_generer_arguments_tab(),# 4: Génération arguments
-            self._build_email_tab(),            # 5: Email client
-            self._build_redaction_tab(),        # 6: Rédaction actes
-            self._build_recherche_tab(),        # 7: Recherche
-            self._build_tampon_tab(),           # 8: Tampon
-            self._build_stt_tab(),              # 9: Dictée vocale
-            self._build_ocr_tab(),              # 10: Scan documents
-            self._build_result_tab()            # 11: Résultat
+            self._build_generer_prompt_tab(),   # 5: GenIA-L Prompt ← NOUVEAU
+            self._build_email_tab(),            # 6: Email client
+            self._build_redaction_tab(),        # 7: Rédaction actes
+            self._build_recherche_tab(),        # 8: Recherche
+            self._build_tampon_tab(),           # 9: Tampon
+            self._build_stt_tab(),              # 10: Dictée vocale
+            self._build_ocr_tab(),              # 11: Scan documents
+            self._build_result_tab()            # 12: Résultat
         ])
         
         self.tabs.set_title(0, "⚙️ Configuration")
@@ -1251,18 +1365,20 @@ Ou utilisez un outil en ligne gratuit : https://www.ilovepdf.com/fr/pdf_en_texte
         self.tabs.set_title(2, "📁 Analyse dossier")
         self.tabs.set_title(3, "⚖️ Préparer audience")
         self.tabs.set_title(4, "🧠 Arguments")
-        self.tabs.set_title(5, "📧 Email client")
-        self.tabs.set_title(6, "📜 Rédiger actes")
-        self.tabs.set_title(7, "🔍 Recherche")
-        self.tabs.set_title(8, "🖊️ Tampon")
-        self.tabs.set_title(9, "🎤 Dictée")
-        self.tabs.set_title(10, "📄 Scan")
-        self.tabs.set_title(11, "📋 Résultat")
-    
+        self.tabs.set_title(5, "🎯 GenIA-L Prompt")  # ← NOUVEAU
+        self.tabs.set_title(6, "📧 Email client")
+        self.tabs.set_title(7, "📜 Rédiger actes")
+        self.tabs.set_title(8, "🔍 Recherche")
+        self.tabs.set_title(9, "🖊️ Tampon")
+        self.tabs.set_title(10, "🎤 Dictée")
+        self.tabs.set_title(11, "📄 Scan")
+        self.tabs.set_title(12, "📋 Résultat")
+
+
     def connect(self, analyser=None, conclusions=None, ameliorer=None,
                 email=None, recherche=None, dalloz=None, rediger=None, 
                 tampon=None, analyse_dossier=None, preparer_audience=None,
-                generer_arguments=None):
+                generer_arguments=None, generer_prompt=None):  # ← AJOUTER
         """
         Connecte les fonctions de traitement
         """
@@ -1276,7 +1392,9 @@ Ou utilisez un outil en ligne gratuit : https://www.ilovepdf.com/fr/pdf_en_texte
         self.on_analyse_dossier = analyse_dossier
         self.on_preparer_audience = preparer_audience
         self.on_generer_arguments = generer_arguments
-    
+        self.on_generer_prompt = generer_prompt  # ← AJOUTER
+
+        
     def show(self):
         """Affiche l'interface"""
         display(HTML("<h1 style='color:#1a73e8; text-align:center; margin-bottom:20px'>⚖️ Juribot - Interface complète</h1>"))

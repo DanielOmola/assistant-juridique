@@ -13,9 +13,10 @@ from utils.utils_action_preparer_email import preparer_email
 from utils.utils_action_analyse_dossier import analyse_dossier
 from utils.utils_action_prepare_audience import prepare_audience
 from utils.utils_action_simuler_adversaire import simuler_adversaire
+from utils.utils_action_generer_prompt import genere_prompt
 
 
-def launch_interface(llm_client):
+def launch_interface(llm_client, templates):
     """
     Lance l'interface à onglets complète avec toutes les fonctions connectées
     
@@ -26,7 +27,7 @@ def launch_interface(llm_client):
         QuickTabbedUI: Instance de l'interface
     """
     # Créer l'interface
-    ui = QuickTabbedUI(llm_client)
+    ui = QuickTabbedUI(llm_client, templates)
     
     # Connecter les fonctions avec les signatures correctes
     ui.connect(
@@ -54,7 +55,9 @@ def launch_interface(llm_client):
         preparer_audience=lambda analysis, client: prepare_audience(analysis, client),
         
         # Onglet Génération arguments
-        generer_arguments=lambda analysis, client: simuler_adversaire(analysis, client)
+        generer_arguments=lambda analysis, client: simuler_adversaire(analysis, client),
+
+        generer_prompt=lambda prompt_type, texte, template: (prompt_type, texte, template)
     )
     
     # Afficher l'interface
@@ -63,8 +66,8 @@ def launch_interface(llm_client):
     return ui
 
 
-def create_interface(llm_client):
+def create_interface(llm_client, templates):
     """
     Alias de launch_interface
     """
-    return launch_interface(llm_client)
+    return launch_interface(llm_client, templates)
