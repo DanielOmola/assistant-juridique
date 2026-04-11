@@ -1445,8 +1445,8 @@ Ou utilisez un outil en ligne gratuit : https://www.ilovepdf.com/fr/pdf_en_texte
             # self._build_tampon_tab(),           # 9: Tampon
             self._build_stt_tab(),              # 10: Dictée vocale
             # self._build_ocr_tab(),              # 11: Scan documents
-            self._build_result_tab(),           # 12: Résultat
-            self._build_collate_save_tab()      # 13: Sauvegarder texte
+            self._build_collate_save_tab(),      # 13: Sauvegarder texte
+            self._build_result_tab()           # 12: Résultat
         ])
         
         self.tabs.set_title(0, "⚙️ Configuration")
