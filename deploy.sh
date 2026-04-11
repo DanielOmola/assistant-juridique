@@ -79,6 +79,9 @@ cp -r /tmp/temp_repo/utils/* "$DRIVE_PATH/utils/" 2>/dev/null || true
 # Copier les logs
 cp -r /tmp/temp_repo/logs/* "$DRIVE_PATH/logs/" 2>/dev/null || true
 
+# Copier les logo
+cp -r /tmp/temp_repo/logo/* "$DRIVE_PATH/logo/" 2>/dev/null || true
+
 # Copier la config
 cp /tmp/temp_repo/config/*.yaml "$DRIVE_PATH/config/" 2>/dev/null || true
 

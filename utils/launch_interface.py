@@ -57,7 +57,7 @@ def launch_interface(llm_client, templates):
         # Onglet Génération arguments
         generer_arguments=lambda analysis, client: simuler_adversaire(analysis, client),
 
-        generer_prompt=lambda prompt_type, texte, template: (prompt_type, texte, template)
+        generer_prompt=lambda prompt_type, texte, templates: genere_prompt(prompt_type, texte, templates)
     )
     
     # Afficher l'interface

@@ -1,11 +1,13 @@
 
 prompt_basic:
+  description: |
+    Prompt généraliste : synthèse de la description, cas d'usage,..., points de vigilance.
   text: |
     Mon client a signé un contrat de location en janvier 2022.
     Depuis mars 2023, il ne paie plus ses loyers.
     Le propriétaire souhaite engager une procédure pour récupérer les loyers impayés et résilier le bail.
   prompt: |
-    {{ text }}
+    Description : {{ text }}
     
     Tu dois produire une réponse contenant STRICTEMENT les 6 sections suivantes, dans cet ordre, sans en omettre aucune :
 
@@ -21,12 +23,14 @@ prompt_basic:
 
 
 prompt_jurisprudence:
+  description: |
+    Prompt d'aide à la recherche de jurisprudence.
   text: |
     Mon client a signé un contrat de location en janvier 2022.
     Depuis mars 2023, il ne paie plus ses loyers.
     Le propriétaire souhaite engager une procédure pour récupérer les loyers impayés et résilier le bail.
   prompt: |                
-    {{ text }}
+    Description : {{ text }}
 
     Tu dois produire une réponse contenant STRICTEMENT les 6 sections suivantes, dans cet ordre, sans en omettre aucune :
 
@@ -70,10 +74,12 @@ prompt_jurisprudence:
     Ne termine pas ta réponse avant la section 6. Ne supprime aucune section.
 
 prompt_dossier:
+  description: |
+    Prompt d'aide à la préparation de dossier.
   text: |
     Cadre démissionne oct.2024, rétracte nov.2024 pour harcèlement. Acceptation employeur. Mails + attestations.
   prompt: |
-    {{ text }}
+    Description : {{ text }}
 
     8 sections :
     1. FAITS (chrono + zones d'ombre)
@@ -87,14 +93,17 @@ prompt_dossier:
 
     Toutes sections obligatoires.
 
-prompt_dossier:
+recherche_nullites:
+  description: |
+    Prompt d'aide à la recherche de nullités.
   text: |
     Cadre démissionne oct.2024, rétracte nov.2024 pour harcèlement. Acceptation employeur. Mails + attestations.
+  type_nullite: |
+    
   prompt: |
-    {{ text }}
+    Description : {{ text }}
 
-    Rechercher les cas de nullité de la rupture du contrat de travail.
-    Situation : 
+    Rechercher les cas de nullité.
 
     8 sections :
     1. FAITS (chronologie + zones d'ombre)

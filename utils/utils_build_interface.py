@@ -21,9 +21,9 @@ class QuickTabbedUI:
     Interface à onglets complète
     """
     
-    def __init__(self, llm_client=None, prompt_templates=None):
+    def __init__(self, llm_client=None, templates=None):
         self.llm = llm_client
-        self.prompt_templates = prompt_templates
+        self.templates = templates
         self._current_text = None
         self._current_filename = None
         self._last_result = None
@@ -1237,7 +1237,7 @@ Ou utilisez un outil en ligne gratuit : https://www.ilovepdf.com/fr/pdf_en_texte
         
         # Dropdown pour choisir le type de prompt
         prompt_type_dropdown = Dropdown(
-            options=list(self.prompt_templates.keys()) if self.prompt_templates else [],
+            options=list(self.templates.keys()) if self.templates else [],
             description="📋 Type de prompt:",
             layout={'width': '100%'},
             style={'description_width': 'initial'}
@@ -1259,8 +1259,8 @@ Ou utilisez un outil en ligne gratuit : https://www.ilovepdf.com/fr/pdf_en_texte
         
         # Fonction pour mettre à jour la description
         def update_description(change):
-            if self.prompt_templates and change['new'] in self.prompt_templates:
-                template_info = self.prompt_templates[change['new']]
+            if self.templates and change['new'] in self.templates:
+                template_info = self.templates[change['new']]
                 desc = template_info.get('description', 'Pas de description disponible')
                 template_description.value = f"""
                 <div style='background:#f0f7ff; padding:10px; border-radius:8px; margin:5px 0'>
@@ -1289,8 +1289,8 @@ Ou utilisez un outil en ligne gratuit : https://www.ilovepdf.com/fr/pdf_en_texte
             
             try:
                 # Appel à la fonction connectée (genere_prompt)
-                prompt_genere = self.on_generer_prompt(prompt_type_dropdown.value, texte_situation)
-                
+                # prompt_genere = self.on_generer_prompt(prompt_type_dropdown.value, texte_situation)
+                prompt_genere = self.on_generer_prompt(prompt_type_dropdown.value, texte_situation, self.templates)
                 # 👇 AFFICHER DANS L'ONGLET RÉSULTAT (dernier onglet)
                 self._display_in_result_tab(prompt_genere, f"Prompt GenIA-L - {prompt_type_dropdown.value}")
                 
@@ -1321,8 +1321,8 @@ Ou utilisez un outil en ligne gratuit : https://www.ilovepdf.com/fr/pdf_en_texte
         prompt_type_dropdown.observe(update_description, names='value')
         
         # Initialiser la description
-        if self.prompt_templates and len(self.prompt_templates) > 0:
-            first_key = list(self.prompt_templates.keys())[0]
+        if self.templates and len(self.templates) > 0:
+            first_key = list(self.templates.keys())[0]
             update_description({'new': first_key})
         
         btn_generer.on_click(on_generate)
@@ -1397,7 +1397,7 @@ Ou utilisez un outil en ligne gratuit : https://www.ilovepdf.com/fr/pdf_en_texte
         
     def show(self):
         """Affiche l'interface"""
-        display(HTML("<h1 style='color:#1a73e8; text-align:center; margin-bottom:20px'>⚖️ Juribot - Interface complète</h1>"))
+        display(HTML("<h1 style='color:#1a73e8; text-align:center; margin-bottom:20px'>🤖 Accélérons vos dossiers.</h1>"))
         display(self.tabs)
     
     def get_current_text(self):
