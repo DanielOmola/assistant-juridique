@@ -1,5 +1,39 @@
 from google.colab import userdata
 
+# def get_api_keys():
+#     # ========== LISTE DES CLÉS API ATTENDUES ==========
+#     # Correspondance entre les noms dans Secrets et les noms utilisés dans le code
+#     PROVIDER_KEY_MAPPING = {
+#         "GROQ_API_KEY": "groq",
+#         "OPENAI_API_KEY": "openai",  # Note: corrigé (toi tu avais OPENAIP_API_KEY avec un P en trop)
+#         "ANTHROPIC_API_KEY": "anthropic",
+#         "MISTRAL_API_KEY": "mistral",
+#         "GOOGLE_API_KEY": "google",
+#     }
+
+#     # ========== CHARGEMENT DES CLÉS API ==========
+#     API_KEYS = {
+#         "openai": None,
+#         "anthropic": None,
+#         "groq": None,
+#         "mistral": None,
+#         "google": None,
+#     }
+
+#     print("🔑 Chargement des clés API...")
+#     for secret_name, provider_name in PROVIDER_KEY_MAPPING.items():
+#         try:
+#             test_key = userdata.get(secret_name)
+#             if test_key and "n/a" not in test_key.lower():
+#                 API_KEYS[provider_name] = test_key
+#                 print(f"✅ {secret_name} → {provider_name}: {test_key[:10]}... (caché)")
+#             else:
+#                 print(f"⚠️ {secret_name}: clé vide ou non configurée")
+#         except Exception as e:
+#             print(f"❌ {secret_name}: non trouvée - {str(e)}")
+#     return API_KEYS
+
+
 def get_api_keys():
     # ========== LISTE DES CLÉS API ATTENDUES ==========
     # Correspondance entre les noms dans Secrets et les noms utilisés dans le code
@@ -32,8 +66,6 @@ def get_api_keys():
         except Exception as e:
             print(f"❌ {secret_name}: non trouvée - {str(e)}")
     return API_KEYS
-
-
 
 def get_llm_config(api_keys):
     """
