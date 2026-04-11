@@ -1341,6 +1341,94 @@ Ou utilisez un outil en ligne gratuit : https://www.ilovepdf.com/fr/pdf_en_texte
             self.prompt_output
         ], layout={'padding': '15px'})
 
+    def _build_collate_save_tab(self):
+        """Onglet Coller du texte et sauvegarder dans Drive"""
+        
+        self.collate_output = Output(layout={'width': '100%', 'max_height': '500px', 'overflow_y': 'auto'})
+        
+        # Zone de texte pour coller
+        paste_text = Textarea(
+            placeholder="Collez votre texte ici...",
+            layout={'width': '100%', 'height': '300px'}
+        )
+        
+        # Nom du fichier
+        filename_input = Text(
+            placeholder="nom_fichier (sans extension)",
+            description="📄 Nom:",
+            layout={'width': '100%'}
+        )
+        
+        # Dossier de destination
+        save_path_input = Text(
+            value=self.save_path,
+            description="💾 Dossier:",
+            layout={'width': '100%'}
+        )
+        
+        # Bouton sauvegarder
+        btn_save = Button(
+            description="💾 Sauvegarder dans Drive",
+            button_style='success',
+            layout={'width': '250px'}
+        )
+        
+        # Statut
+        save_status = HTML("")
+        
+        def on_save(b):
+            texte = paste_text.value.strip()
+            if not texte:
+                save_status.value = "<span style='color:red'>❌ Aucun texte à sauvegarder</span>"
+                return
+            
+            # Nom du fichier
+            if filename_input.value.strip():
+                nom = filename_input.value.strip()
+                nom = re.sub(r'[<>:"/\\|?*]', '_', nom)
+            else:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                nom = f"note_{timestamp}"
+            
+            if not nom.endswith('.txt'):
+                nom += '.txt'
+            
+            # Dossier
+            dossier = save_path_input.value or self.save_path
+            if dossier and not os.path.exists(dossier):
+                os.makedirs(dossier, exist_ok=True)
+            
+            chemin = os.path.join(dossier, nom)
+            
+            try:
+                with open(chemin, 'w', encoding='utf-8') as f:
+                    f.write(texte)
+                save_status.value = f"<span style='color:green'>✅ Sauvegardé: {chemin}</span>"
+                
+                # Option: vider après sauvegarde
+                # paste_text.value = ""
+                
+            except Exception as e:
+                save_status.value = f"<span style='color:red'>❌ Erreur: {str(e)}</span>"
+        
+        btn_save.on_click(on_save)
+        
+        return VBox([
+            HTML("<b>📋 Coller et sauvegarder</b>"),
+            HTML("<i>Collez du texte copié depuis n'importe quelle source et sauvegardez-le dans Google Drive</i>"),
+            HTML("<hr>"),
+            paste_text,
+            HTML("<br>"),
+            filename_input,
+            HTML("<br>"),
+            save_path_input,
+            HTML("<br>"),
+            HBox([btn_save], layout={'justify_content': 'center'}),
+            HTML("<br>"),
+            save_status,
+            self.collate_output
+        ], layout={'padding': '15px'})
+
     def _build_all_tabs(self):
         """Construit tous les onglets"""
         
@@ -1354,10 +1442,11 @@ Ou utilisez un outil en ligne gratuit : https://www.ilovepdf.com/fr/pdf_en_texte
             self._build_email_tab(),            # 6: Email client
             self._build_redaction_tab(),        # 7: Rédaction actes
             self._build_recherche_tab(),        # 8: Recherche
-            self._build_tampon_tab(),           # 9: Tampon
+            # self._build_tampon_tab(),           # 9: Tampon
             self._build_stt_tab(),              # 10: Dictée vocale
-            self._build_ocr_tab(),              # 11: Scan documents
-            self._build_result_tab()            # 12: Résultat
+            # self._build_ocr_tab(),              # 11: Scan documents
+            self._build_result_tab(),           # 12: Résultat
+            self._build_collate_save_tab()      # 13: Sauvegarder texte
         ])
         
         self.tabs.set_title(0, "⚙️ Configuration")
@@ -1365,20 +1454,31 @@ Ou utilisez un outil en ligne gratuit : https://www.ilovepdf.com/fr/pdf_en_texte
         self.tabs.set_title(2, "📁 Analyse dossier")
         self.tabs.set_title(3, "⚖️ Préparer audience")
         self.tabs.set_title(4, "🧠 Arguments")
-        self.tabs.set_title(5, "🎯 GenIA-L Prompt")  # ← NOUVEAU
+        self.tabs.set_title(5, "🎯 GenIA-L Prompting")  # ← NOUVEAU
         self.tabs.set_title(6, "📧 Email client")
         self.tabs.set_title(7, "📜 Rédiger actes")
         self.tabs.set_title(8, "🔍 Recherche")
-        self.tabs.set_title(9, "🖊️ Tampon")
-        self.tabs.set_title(10, "🎤 Dictée")
-        self.tabs.set_title(11, "📄 Scan")
-        self.tabs.set_title(12, "📋 Résultat")
+        # self.tabs.set_title(9, "🖊️ Tampon")
+        self.tabs.set_title(9, "🎤 Dictée")
+        # self.tabs.set_title(11, "📄 Scan")
+        self.tabs.set_title(10, "📋 Sauvegarder")
+        self.tabs.set_title(11, "📋 Résultat")
 
 
-    def connect(self, analyser=None, conclusions=None, ameliorer=None,
-                email=None, recherche=None, dalloz=None, rediger=None, 
-                tampon=None, analyse_dossier=None, preparer_audience=None,
-                generer_arguments=None, generer_prompt=None):  # ← AJOUTER
+    def connect(self, 
+                analyser=None, 
+                conclusions=None, 
+                ameliorer=None,
+                email=None, 
+                recherche=None, 
+                dalloz=None, 
+                rediger=None, 
+                # tampon=None, 
+                analyse_dossier=None, 
+                preparer_audience=None,
+                generer_arguments=None, 
+                generer_prompt=None
+                ):  # ← AJOUTER
         """
         Connecte les fonctions de traitement
         """
@@ -1388,7 +1488,7 @@ Ou utilisez un outil en ligne gratuit : https://www.ilovepdf.com/fr/pdf_en_texte
         self.on_email = email
         self.on_recherche = recherche or dalloz
         self.on_rediger = rediger
-        self.on_tampon = tampon
+        # self.on_tampon = tampon
         self.on_analyse_dossier = analyse_dossier
         self.on_preparer_audience = preparer_audience
         self.on_generer_arguments = generer_arguments

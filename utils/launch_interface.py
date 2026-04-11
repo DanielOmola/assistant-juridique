@@ -46,7 +46,7 @@ def launch_interface(llm_client, templates):
         rediger=lambda t, type_, instr: rediger_acte_juridique(t, llm_client, type_, instr),
         
         # Onglet Tampon
-        tampon=lambda t, config: appliquer_tampon(t, config),
+        # tampon=lambda t, config: appliquer_tampon(t, config),
         
         # Onglet Analyse dossier (multi-documents)
         analyse_dossier=lambda paths, client: analyse_dossier(paths, client),
