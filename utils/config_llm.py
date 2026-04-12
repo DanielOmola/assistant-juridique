@@ -80,19 +80,29 @@ def get_llm_config(api_keys):
     """
     MODELES_DISPONIBLES = {
         # OpenAI
-        "gpt-4o": {"provider": "openai", "name": "GPT-4o (recommandé)", "context": 128000},
-        "gpt-4-turbo": {"provider": "openai", "name": "GPT-4 Turbo", "context": 128000},
-        "gpt-3.5-turbo": {"provider": "openai", "name": "GPT-3.5 Turbo (rapide/peu cher)", "context": 16385},
+        # https://developers.openai.com/api/docs
+        "gpt-5.4": {"provider": "openai", "name": "GPT-5.4 (recommandé)", "context": 1050000},
+        "gpt-5.4-mini": {"provider": "openai", "name": "GPT-5.4 mini", "context": 400000},
+        "gpt-5.4-nano": {"provider": "openai", "name": "GPT-5.4 nano (rapide/peu cher)", "context": 400000},
+
 
         # Anthropic Claude
-        "claude-3-5-sonnet-20241022": {"provider": "anthropic", "name": "Claude 3.5 Sonnet (meilleur juridique)", "context": 200000},
-        "claude-3-opus-20240229": {"provider": "anthropic", "name": "Claude 3 Opus (très précis)", "context": 200000},
-        "claude-3-haiku-20240307": {"provider": "anthropic", "name": "Claude 3 Haiku (rapide)", "context": 200000},
+        # https://platform.claude.com/docs/en/about-claude/models/overview
+        "claude-opus-4-6": {"provider": "anthropic", "name": "Claude Opus 4.6 (meilleur juridique)", "context": 1000000},
+        "claude-sonnet-4-6": {"provider": "anthropic", "name": "Claude Sonnet 4.6 (très précis)", "context": 1000000},
+        "claude-haiku-4-5-20251001": {"provider": "anthropic", "name": "Claude Haiku 4.5 (rapide)", "context": 200000},
 
         # Groq (modèles gratuits/rapides)
-        "llama-3.3-70b-versatile": {"provider": "groq", "name": "Llama 3.3 70B (gratuit/rapide)", "context": 128000},
-        "mixtral-8x7b-32768": {"provider": "groq", "name": "Mixtral 8x7B (gratuit)", "context": 32768},
-        "gemma2-9b-it": {"provider": "groq", "name": "Gemma 2 9B (gratuit)", "context": 8192},
+        # https://console.groq.com/docs/models
+        "llama-3.3-70b-versatile": {"provider": "groq", "name": "Llama 3.3 70B (gratuit/rapide)", "context": 131072},
+        "llama-3.1-8b-instant": {"provider": "groq", "name": "Llama 3.1 8B", "context": 131072},
+        "openai/gpt-oss-120b": {"provider": "groq", "name": "GPT OSS 120B", "context": 131072},
+        "openai/gpt-oss-20b": {"provider": "groq", "name": "GPT OSS 20B", "context": 131072},
+
+        # https://ai.google.dev/gemini-api/docs/models?hl=fr
+        "gemini-3.1-pro-preview": {"provider": "google", "name": "Gemini 3.1 Pro (preview)", "context": 1048576},
+        "gemini-3-flash-preview": {"provider": "google", "name": "Gemini 3 Flash", "context": 131072},
+        "gemini-3.1-flash-lite-preview": {"provider": "google", "name": "Gemini 3.1 Flash-Lite Preview", "context": 131072},
     }
     
     # Modèle par défaut (utilise GROQ qui est gratuit si dispo)
