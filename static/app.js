@@ -214,35 +214,35 @@ async function runStep(stepIndex) {
     const step = workflow.steps[stepIndex];
     const stepDef = stepTypes[step.type];
     
-    // Mettre à jour le statut
     step.status = 'running';
     step.error = null;
     renderWorkflow();
     
     try {
-        // Récupérer le contexte (résultat de l'étape précédente si nécessaire)
+        // Utiliser la nouvelle fonction avec mode
         const context = getContextForStep(stepIndex);
         
-        // Préparer les données pour l'API
+        let finalText = workflow.document;
+        if (context) {
+            finalText = `${context.result}\n\n[DOCUMENT SOURCE]\n${workflow.document}`;
+        }
+        
         const apiData = {
-            text: workflow.document,
+            text: finalText,
             config: step.config,
             context: context,
             step_type: step.type
         };
         
-        // Appel API spécifique à l'étape
         const endpointType = step.type === 'analyse' ? 'analyser' : step.type;
         const result = await callWorkflowStep(endpointType, apiData);
-        // const result = await stepDef.execute(step, context);
+        
         step.status = 'success';
         step.result = result;
         stepResults[step.id] = result;
         
-        // Si c'est une étape qui génère un document, proposer de l'utiliser pour la suite
-        if (step.type === 'analyse' || step.type === 'conclusions' || step.type === 'recherche') {
-            showNotification(`✅ ${step.name} terminé. Vous pouvez l'utiliser comme contexte pour les étapes suivantes.`);
-        }
+        const mode = document.getElementById('contextMode')?.value === 'full' ? 'complet' : 'dernier résultat';
+        showNotification(`✅ ${step.name} terminé (mode: ${mode})`);
         
     } catch (error) {
         step.status = 'error';
@@ -263,19 +263,45 @@ async function executeAllSteps() {
     showNotification('✅ Workflow complété !');
 }
 
-// Obtenir le contexte pour une étape (résultat de l'étape précédente)
+// Obtenir le contexte selon le mode choisi
 function getContextForStep(stepIndex) {
     if (stepIndex === 0) return null;
     
-    const previousStep = workflow.steps[stepIndex - 1];
-    if (previousStep && previousStep.result) {
+    const contextMode = document.getElementById('contextMode')?.value || 'full';
+    const previousSteps = workflow.steps.slice(0, stepIndex);
+    const successfulResults = previousSteps.filter(step => step.result);
+    
+    if (successfulResults.length === 0) return null;
+    
+    if (contextMode === 'last') {
+        // Mode : seulement le dernier résultat
+        const lastStep = successfulResults[successfulResults.length - 1];
         return {
-            type: previousStep.type,
-            result: previousStep.result
+            type: 'last_only',
+            result: `[RÉSULTAT PRÉCÉDENT - ${lastStep.name}]\n${lastStep.result}`,
+            steps: [lastStep]
+        };
+    } else {
+        // Mode : historique complet
+        let contextHistory = "=== HISTORIQUE COMPLET DU WORKFLOW ===\n\n";
+        
+        successfulResults.forEach((step, idx) => {
+            contextHistory += `--- Étape ${idx + 1}: ${step.name} ---\n`;
+            contextHistory += `${step.result}\n\n`;
+        });
+        
+        contextHistory += "=== INSTRUCTIONS ===\n";
+        contextHistory += "Utilisez l'historique ci-dessus pour répondre.\n";
+        
+        return {
+            type: 'full_history',
+            result: contextHistory,
+            steps: successfulResults
         };
     }
-    return null;
 }
+
+
 async function callWorkflowStep(stepType, data) {
     let finalText = data.text;
     
@@ -715,3 +741,8 @@ async function loadModelsForProviderSelect() {
     }
 }
 
+// Ajoutez ceci au début, près de workflow
+let workflowHistory = {
+    steps: [],           // Historique de toutes les étapes exécutées
+    currentContext: null // Contexte cumulé
+};
