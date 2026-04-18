@@ -1,195 +1,113 @@
 <!DOCTYPE html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Assistant Juridique IA</title>
-  <link rel="stylesheet" href="/static/style.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assistant Juridique IA - Workflow</title>
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <div class="container">
-    <header class="header">
-      <h1>🤖 Assistant Juridique IA</h1>
-      <p>Analyse, rédaction et recherche assistée</p>
-    </header>
+    <div class="container">
+        <header class="header">
+            <h1>🤖 Assistant Juridique IA</h1>
+            <p>Workflow intelligent pour avocats</p>
+        </header>
 
-    <div class="layout">
-      <!-- SIDEBAR -->
-      <aside class="sidebar">
-        <h3>⚙️ Configuration IA</h3>
-        <hr />
-        
-        <label>Provider:</label>
-        <select id="provider_select">
-          <option value="">Chargement des providers...</option>
-        </select>
-        
-        <label>Modele IA:</label>
-        <select id="model_select" disabled>
-          <option value="">-- Selectionnez d'abord un provider --</option>
-        </select>
-        
-        <label>Temperature: <span id="temp_value">0.5</span></label>
-        <input type="range" id="temperature" min="0" max="1" step="0.05" value="0.3">
-        
-        <label>Tokens max: <span id="tokens_value">4000</span></label>
-        <input type="range" id="max_tokens" min="500" max="8000" step="500" value="4000">
-        
-        <button id="initBtn">🚀 Initialiser</button>
-        <div id="init_status"></div>
-        
-        <hr />
-        
-        <h3>📄 Document source</h3>
-        <input type="file" id="file_upload" accept=".txt,.pdf,.docx">
-        <textarea id="direct_text" rows="4" placeholder="Ou collez votre texte ici..."></textarea>
-        <button id="loadDocBtn">✅ Valider</button>
-        <div id="doc_status"></div>
-        
-        <hr />
-        
-        <button id="quitBtn" class="danger">❌ Quitter</button>
-      </aside>
+        <div class="layout">
+            <!-- SIDEBAR : Configuration et document source -->
+            <aside class="sidebar">
+                <h3>⚙️ Configuration IA</h3>
+                <hr>
+                
+                <label>Provider:</label>
+<select id="provider_select" onchange="loadModelsForProviderSelect()">
+    <option value="">Chargement...</option>
+</select>
+                
+                <label>Modèle IA:</label>
+                <select id="model_select" disabled>
+                    <option value="">-- Sélectionnez d'abord un provider --</option>
+                </select>
+                
+                <label>Température: <span id="temp_value">0.5</span></label>
+                <input type="range" id="temperature" min="0" max="1" step="0.05" value="0.3">
+                
+                <label>Tokens max: <span id="tokens_value">4000</span></label>
+                <input type="range" id="max_tokens" min="500" max="8000" step="500" value="4000">
+                
+                <button id="initBtn">🚀 Initialiser</button>
+                <div id="init_status"></div>
+                
+                <hr>
+                
+                <h3>📄 Document source</h3>
+                <input type="file" id="file_upload" accept=".txt,.pdf,.docx">
+                <textarea id="direct_text" rows="4" placeholder="Ou collez votre texte ici..."></textarea>
+                <button id="loadDocBtn">✅ Valider</button>
+                <div id="doc_status"></div>
+                
+                <hr>
+                
+                <button id="quitBtn" class="danger">❌ Quitter</button>
+            </aside>
 
-      <!-- MAIN -->
-      <main class="content">
-        <nav class="tabs">
-          <button class="tab active" data-tab="analyse">📊 Analyse</button>
-          <button class="tab" data-tab="email">📧 Email</button>
-          <button class="tab" data-tab="redaction">📜 Redaction</button>
-          <button class="tab" data-tab="recherche">🔍 Recherche</button>
-          <button class="tab" data-tab="dossier">📁 Dossier</button>
-          <button class="tab" data-tab="audience">⚖️ Audience</button>
-          <button class="tab" data-tab="arguments">🧠 Arguments</button>
-          <button class="tab" data-tab="prompt">🎯 Prompt</button>
-          <button class="tab" data-tab="tampon">🖊️ Tampon</button>
-          <button class="tab" data-tab="config">🔧 Configuration</button>
-          <button class="tab" data-tab="resultat">📋 Resultat</button>
-        </nav>
-
-        <!-- Onglet Analyse -->
-        <section id="analyse" class="tab-content active">
-          <h3>📊 Analyse &amp; Action juridique</h3>
-          <div id="analyse_info" class="info"></div>
-          <div class="btn-group">
-            <button id="analyserBtn">🔍 Analyser</button>
-            <button id="conclusionsBtn">⚖️ Conclusions</button>
-            <button id="ameliorerBtn">✨ Ameliorer</button>
-          </div>
-          <div id="analyse_result" class="result-box"></div>
-        </section>
-
-        <!-- Onglet Email -->
-        <section id="email" class="tab-content">
-          <h3>📧 Email client</h3>
-          <button id="emailBtn">📧 Generer l'email</button>
-          <div id="email_result" class="result-box"></div>
-        </section>
-
-        <!-- Onglet Redaction -->
-        <section id="redaction" class="tab-content">
-          <h3>📜 Redaction d'actes juridiques</h3>
-          <select id="acte_type">
-            <option value="contrat">Contrat</option>
-            <option value="avenant">Avenant</option>
-            <option value="mise_en_demeure">Mise en demeure</option>
-            <option value="assignation">Assignation</option>
-          </select>
-          <textarea id="instructions" rows="3" placeholder="Instructions specifiques..."></textarea>
-          <button id="redigerBtn">📜 Generer</button>
-          <div id="redaction_result" class="result-box"></div>
-        </section>
-
-        <!-- Onglet Recherche -->
-        <section id="recherche" class="tab-content">
-          <h3>🔍 Recherche juridique</h3>
-          <textarea id="search_query" rows="3" placeholder="Votre question juridique..."></textarea>
-          <button id="rechercheBtn">🔍 Rechercher</button>
-          <div id="recherche_result" class="result-box"></div>
-        </section>
-
-        <!-- Onglet Dossier -->
-        <section id="dossier" class="tab-content">
-          <h3>📁 Analyse de dossier complet</h3>
-          <input type="file" id="dossier_files" multiple accept=".txt,.pdf,.docx">
-          <button id="analyseDossierBtn">📁 Analyser le dossier</button>
-          <div id="dossier_result" class="result-box"></div>
-        </section>
-
-        <!-- Onglet Audience -->
-        <section id="audience" class="tab-content">
-          <h3>⚖️ Preparation d'audience</h3>
-          <button id="preparerAudienceBtn">⚖️ Preparer</button>
-          <div id="audience_result" class="result-box"></div>
-        </section>
-
-        <!-- Onglet Arguments -->
-        <section id="arguments" class="tab-content">
-          <h3>🧠 Arguments juridiques</h3>
-          <button id="genererArgumentsBtn">🧠 Generer</button>
-          <div id="arguments_result" class="result-box"></div>
-        </section>
-
-        <!-- Onglet Prompt -->
-        <section id="prompt" class="tab-content">
-          <h3>🎯 Generateur de prompts GenIA-L</h3>
-          <select id="prompt_type">
-            <option value="prompt_basic">prompt_basic</option>
-            <option value="prompt_jurisprudence">prompt_jurisprudence</option>
-            <option value="prompt_dossier">prompt_dossier</option>
-            <option value="recherche_nullites">recherche_nullites</option>
-          </select>
-          <textarea id="situation" rows="5" placeholder="Decrivez votre situation juridique..."></textarea>
-          <button id="genererPromptBtn">🎯 Generer</button>
-          <div id="prompt_result" class="result-box"></div>
-        </section>
-
-        <!-- Onglet Tampon -->
-        <section id="tampon" class="tab-content">
-          <h3>🖊️ Tampon avocat</h3>
-          <input type="text" id="nom" placeholder="Nom">
-          <input type="text" id="prenom" placeholder="Prenom">
-          <input type="text" id="barreau" placeholder="Barreau">
-          <button id="appliquerTamponBtn">🖊️ Appliquer</button>
-          <div id="tampon_result" class="result-box"></div>
-        </section>
-
-        <!-- Onglet Configuration -->
-        <section id="config" class="tab-content">
-          <h3>🔧 Gestion des Providers &amp; Models</h3>
-          
-          <h4>Providers</h4>
-          <button id="addProviderBtn" class="success">➕ Ajouter un provider</button>
-          <table id="providers_table">
-            <thead>
-              <tr><th>Nom</th><th>URL</th><th>API Key</th><th>Actions</th></tr>
-            </thead>
-            <tbody id="providers_table_body">
-              <tr><td colspan="4">Chargement...</td></tr>
-            </tbody>
-          </table>
-          
-          <hr />
-          
-          <h4>Models</h4>
-          <label>Selectionner un provider:</label>
-          <select id="model_provider_select">
-            <option value="">-- Choisir un provider --</option>
-          </select>
-          <button id="addModelBtn" class="success">➕ Ajouter un modele</button>
-          <div id="models_list"></div>
-        </section>
-
-        <!-- Onglet Resultat -->
-        <section id="resultat" class="tab-content">
-          <h3>📋 Resultat</h3>
-          <div id="last_result" class="result-box"></div>
-          <button id="downloadResultBtn">💾 Telecharger</button>
-          <button id="copyResultBtn">📋 Copier</button>
-        </section>
-      </main>
+            <!-- MAIN : Workflow unique -->
+            <main class="content">
+                <div class="workflow-container">
+                    <div class="workflow-header">
+                        <h2>🧠 Flux de travail juridique</h2>
+                        <div class="workflow-actions">
+                            <button id="executeAllBtn" class="success">🔄 Exécuter tout</button>
+                            <button id="saveWorkflowBtn">💾 Sauvegarder</button>
+                            <button id="loadWorkflowBtn">📂 Charger</button>
+                        </div>
+                    </div>
+                    
+                    <!-- État du dossier -->
+                    <div class="dossier-info">
+                        <span>📁 Dossier actif: <strong id="dossier_name">Aucun document chargé</strong></span>
+                    </div>
+                    
+                    <!-- Liste des étapes du workflow -->
+                    <div id="workflow-steps" class="workflow-steps">
+                        <!-- Les étapes sont ajoutées dynamiquement -->
+                        <div class="empty-workflow">
+                            <p>✨ Aucune étape dans votre workflow</p>
+                            <p>Cliquez sur <strong>+ Ajouter une étape</strong> pour commencer</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Ajouter une nouvelle étape -->
+                    <div class="add-step">
+                        <select id="step_type_select">
+                            <option value="analyse">🔍 Analyser le document</option>
+                            <option value="conclusions">⚖️ Générer des conclusions</option>
+                            <option value="ameliorer">✨ Améliorer le document</option>
+                            <option value="email">📧 Générer un email</option>
+                            <option value="rediger">📜 Rédiger un acte juridique</option>
+                            <option value="recherche">🔍 Recherche juridique</option>
+                            <option value="preparer_audience">⚖️ Préparer audience</option>
+                            <option value="generer_arguments">🧠 Générer arguments</option>
+                            <option value="generer_prompt">🎯 Générer prompt</option>
+                            <option value="appliquer_tampon">🖊️ Appliquer tampon</option>
+                        </select>
+                        <button id="addStepBtn" class="success">➕ Ajouter cette étape</button>
+                    </div>
+                </div>
+                
+                <!-- Modal pour configurer une étape -->
+                <div id="stepModal" class="modal">
+                    <div class="modal-content">
+                        <span class="close" onclick="closeStepModal()">&times;</span>
+                        <h3 id="modal_title">Configurer l'étape</h3>
+                        <div id="modal_fields"></div>
+                        <button onclick="saveStepConfig()" class="success">✅ Valider</button>
+                        <button onclick="closeStepModal()">Annuler</button>
+                    </div>
+                </div>
+            </main>
+        </div>
     </div>
-  </div>
 
-  <script src="/static/app.js"></script>
+    <script src="/static/app.js"></script>
 </body>
 </html>

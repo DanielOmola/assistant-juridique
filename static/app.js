@@ -1,686 +1,717 @@
-// Variables globales
-let state = {
-  text: "",
-  lastResult: "",
-  currentText: ""
+// ========== MODÈLE DE DONNÉES ==========
+let workflow = {
+    id: null,
+    name: "Mon dossier",
+    document: "",
+    steps: []
 };
 
-// Fonction API unifiée
-async function api(url, data, method = "POST") {
-  const options = {
-    method,
-    headers: { "Content-Type": "application/json" }
-  };
-  if (data && method !== "GET") {
-    options.body = JSON.stringify(data);
-  }
-  const res = await fetch(url, options);
-  return res.json();
-}
+let currentEditingStepIndex = null;
 
-function setLoading(id) {
-  const element = document.getElementById(id);
-  if (element) element.innerHTML = '<div class="loading">Chargement...</div>';
-}
+// Types d'étapes avec leur configuration
+const stepTypes = {
+    analyse: {
+        name: "🔍 Analyser",
+        fields: [],
+        execute: async (step, context) => {
+            return await callApiWithContext('analyser', step, context);
+        }
+    },
+    conclusions: {
+        name: "⚖️ Conclusions",
+        fields: [],
+        execute: async (step, context) => {
+            return await callApiWithContext('conclusions', step, context);
+        }
+    },
+    ameliorer: {
+        name: "✨ Améliorer",
+        fields: [],
+        execute: async (step, context) => {
+            return await callApiWithContext('ameliorer', step, context);
+        }
+    },
+    email: {
+        name: "📧 Email",
+        fields: [
+            { name: "destinataire", label: "Destinataire", type: "text", placeholder: "client@email.com" },
+            { name: "objet", label: "Objet", type: "text", placeholder: "Objet de l'email" },
+            { name: "source", label: "Basé sur", type: "select", options: [
+                { value: "document", label: "📄 Document source" },
+                { value: "analyse", label: "📊 Dernière analyse" },
+                { value: "conclusions", label: "⚖️ Dernières conclusions" },
+                { value: "recherche", label: "🔍 Dernière recherche" }
+            ]}
+        ],
+        execute: async (step, context) => {
+            return await callApiWithContext('email', step, context);
+        }
+    },
+    rediger: {
+        name: "📜 Rédiger",
+        fields: [
+            { name: "acte_type", label: "Type d'acte", type: "select", options: [
+                { value: "contrat", label: "Contrat" },
+                { value: "avenant", label: "Avenant" },
+                { value: "mise_en_demeure", label: "Mise en demeure" },
+                { value: "assignation", label: "Assignation" }
+            ]},
+            { name: "instructions", label: "Instructions", type: "textarea", placeholder: "Instructions spécifiques..." }
+        ],
+        execute: async (step, context) => {
+            return await callApiWithContext('rediger', step, context);
+        }
+    },
+    recherche: {
+        name: "🔍 Recherche",
+        fields: [
+            { name: "query", label: "Question juridique", type: "textarea", placeholder: "Votre question..." }
+        ],
+        execute: async (step, context) => {
+            return await callApiWithContext('recherche', step, context);
+        }
+    },
+    preparer_audience: {
+        name: "⚖️ Audience",
+        fields: [],
+        execute: async (step, context) => {
+            return await callApiWithContext('preparer_audience', step, context);
+        }
+    },
+    generer_arguments: {
+        name: "🧠 Arguments",
+        fields: [],
+        execute: async (step, context) => {
+            return await callApiWithContext('generer_arguments', step, context);
+        }
+    },
+    generer_prompt: {
+        name: "🎯 Prompt",
+        fields: [
+            { name: "prompt_type", label: "Type de prompt", type: "select", options: [
+                { value: "prompt_basic", label: "Prompt basique" },
+                { value: "prompt_jurisprudence", label: "Recherche jurisprudence" },
+                { value: "prompt_dossier", label: "Analyse dossier" },
+                { value: "recherche_nullites", label: "Recherche nullités" }
+            ]},
+            { name: "situation", label: "Situation juridique", type: "textarea", placeholder: "Décrivez votre situation..." }
+        ],
+        execute: async (step, context) => {
+            return await callApiWithContext('generer_prompt', step, context);
+        }
+    },
+    appliquer_tampon: {
+        name: "🖊️ Tampon",
+        fields: [
+            { name: "nom", label: "Nom", type: "text" },
+            { name: "prenom", label: "Prénom", type: "text" },
+            { name: "barreau", label: "Barreau", type: "text" }
+        ],
+        execute: async (step, context) => {
+            return await callApiWithContext('appliquer_tampon', step, context);
+        }
+    }
+};
 
-function setResult(id, text) {
-  const element = document.getElementById(id);
-  if (element) element.innerHTML = '<div class="result-box">' + (text || "").replace(/\n/g, '<br>') + '</div>';
-}
+// Stockage des résultats par étape
+let stepResults = {};
 
-// Fonction pour changer d'onglet (améliorée)
-function showTab(tabName, element) {
-  var contents = document.getElementsByClassName('tab-content');
-  for (var i = 0; i < contents.length; i++) {
-    contents[i].classList.remove('active');
-  }
-  var tabs = document.getElementsByClassName('tab');
-  for (var i = 0; i < tabs.length; i++) {
-    tabs[i].classList.remove('active');
-  }
-  document.getElementById(tabName).classList.add('active');
-  if (element) {
-    element.classList.add('active');
-  }
-  
-  // Refresh data when opening config tab
-  if (tabName === 'config') {
-    loadProviders();
-    loadAllProvidersForConfig();
-  }
-}
+// ========== FONCTIONS PRINCIPALES ==========
 
-// Initialisation des onglets avec dataset
-document.querySelectorAll(".tab").forEach(btn => {
-  btn.onclick = () => {
-    const currentActive = document.querySelector(".tab.active");
-    if (currentActive) currentActive.classList.remove("active");
-    btn.classList.add("active");
-
-    const currentContent = document.querySelector(".tab-content.active");
-    if (currentContent) currentContent.classList.remove("active");
-    const tabId = btn.getAttribute('data-tab') || btn.innerText.toLowerCase().replace(/[^a-z]/g, '');
-    document.getElementById(tabId).classList.add("active");
-  };
-});
-
-// Load providers that have API keys configured (for sidebar)
-async function loadProvidersWithKeys() {
-  try {
-    const data = await api("/api/providers/with_keys", {}, "GET");
-    const select = document.getElementById('provider_select');
-    if (!select) return;
-    select.innerHTML = '<option value="">-- Selectionner un provider --</option>';
+// Ajouter une étape au workflow
+function addStep() {
+    const stepType = document.getElementById('step_type_select').value;
+    const stepConfig = stepTypes[stepType];
     
-    const modelSelect = document.getElementById('model_select');
-
-    if (data.length === 0) {
-      const opt = document.createElement('option');
-      opt.value = '';
-      opt.disabled = true;
-      opt.textContent = "Aucun provider avec API key - Configurez vos clés dans l'onglet Configuration";
-      select.appendChild(opt);
-
-      if (modelSelect) {
-        modelSelect.innerHTML = '<option value="">-- Selectionnez d\'abord un provider --</option>';
-        modelSelect.disabled = true;
-      }
-    } else {
-      for (const provider of data) {
-        const option = document.createElement('option');
-        option.value = provider.name;
-        const modelText = provider.models_count === 1 ? 'modele' : 'modeles';
-        option.textContent = `${provider.name} (${provider.models_count} ${modelText})`;
-        select.appendChild(option);
-      }
-      if (modelSelect) {
-        modelSelect.innerHTML = '<option value="">-- Selectionnez d\'abord un provider --</option>';
-        modelSelect.disabled = true;
-      }
-    }
-  } catch(e) {
-    console.error('Error loading providers:', e);
-    const select = document.getElementById('provider_select');
-    if (select) select.innerHTML = '<option value="">Erreur de chargement</option>';
-  }
-}
-
-// Load models for selected provider
-async function loadModelsForProviderSelect() {
-  var providerName = document.getElementById('provider_select').value;
-  var modelSelect = document.getElementById('model_select');
-  
-  if (!modelSelect) return;
-  
-  if (!providerName) {
-    modelSelect.innerHTML = '<option value="">-- Selectionnez d\'abord un provider --</option>';
-    modelSelect.disabled = true;
-    return;
-  }
-  
-  modelSelect.innerHTML = '<option value="">Chargement des modeles...</option>';
-  modelSelect.disabled = true;
-  
-  try {
-    var data = await api('/api/models/available/' + encodeURIComponent(providerName), {}, "GET");
+    const newStep = {
+        id: Date.now(),
+        type: stepType,
+        name: stepConfig.name,
+        config: {},
+        status: 'pending', // pending, running, success, error
+        result: null,
+        error: null
+    };
     
-    if (data.length === 0) {
-      modelSelect.innerHTML = '<option value="">Aucun modele disponible pour ce provider</option>';
-      modelSelect.disabled = true;
-    } else {
-      modelSelect.innerHTML = '<option value="">-- Selectionner un modele --</option>';
-      for (var model of data) {
-        var option = document.createElement('option');
-        option.value = model.model_key;
-        option.textContent = model.display_name + ' (' + model.context_length + ' tokens)';
-        modelSelect.appendChild(option);
-      }
-      modelSelect.disabled = false;
+    // Initialiser la config avec les valeurs par défaut des champs
+    if (stepConfig.fields) {
+        stepConfig.fields.forEach(field => {
+            newStep.config[field.name] = '';
+        });
     }
-  } catch(e) {
-    console.error('Error loading models:', e);
-    modelSelect.innerHTML = '<option value="">Erreur de chargement</option>';
-    modelSelect.disabled = true;
-  }
-}
-
-// Initialize assistant
-async function initAssistant() {
-  var providerName = document.getElementById('provider_select').value;
-  var modelKey = document.getElementById('model_select').value;
-  var temperature = parseFloat(document.getElementById('temperature').value);
-  var maxTokens = parseInt(document.getElementById('max_tokens').value);
-  
-  if (!providerName) {
-    alert('Veuillez d\'abord selectionner un provider');
-    return;
-  }
-  
-  if (!modelKey) {
-    alert('Veuillez selectionner un modele');
-    return;
-  }
-  
-  var statusDiv = document.getElementById('init_status');
-  statusDiv.innerHTML = '<div class="loading">Initialisation...</div>';
-  
-  try {
-    var result = await api('/api/init', {
-      provider_name: providerName,
-      model_key: modelKey,
-      temperature: temperature,
-      max_tokens: maxTokens
-    });
-    if (result.success) {
-      statusDiv.innerHTML = '<div class="success-msg">✅ Assistant initialise avec ' + result.model_display + '</div>';
-    } else {
-      statusDiv.innerHTML = '<div class="error">❌ ' + result.error + '</div>';
-    }
-  } catch(e) {
-    statusDiv.innerHTML = '<div class="error">❌ ' + e.message + '</div>';
-  }
-}
-
-// Load all providers for config tab dropdown
-async function loadAllProvidersForConfig() {
-  try {
-    var data = await api('/api/providers/list', {}, "GET");
-    var select = document.getElementById('model_provider_select');
-    if (select) {
-      select.innerHTML = '<option value="">-- Choisir un provider --</option>';
-      for (var provider of data) {
-        var option = document.createElement('option');
-        option.value = provider.name;
-        option.textContent = provider.name;
-        select.appendChild(option);
-      }
-    }
-  } catch(e) {
-    console.error('Error loading providers for config:', e);
-  }
-}
-
-// Load providers for management table
-async function loadProvidersTable() {
-  try {
-    var data = await api('/api/providers/list', {}, "GET");
-    var tbody = document.getElementById('providers_table_body');
-    if (!tbody) return;
-    tbody.innerHTML = '';
     
-    for (var provider of data) {
-      var row = tbody.insertRow();
-      row.insertCell(0).textContent = provider.name;
-      row.insertCell(1).textContent = provider.url;
-      
-      var apiKeyCell = row.insertCell(2);
-      var maskedKey = provider.api_key ? '•' + provider.api_key.slice(-8) : 'Non configuree';
-      apiKeyCell.innerHTML = '<span class="api-key-masked">' + maskedKey + '</span>';
-      
-      var actionsCell = row.insertCell(3);
-      actionsCell.innerHTML = '<button onclick="editApiKey(\'' + provider.name + '\')" style="margin:2px">✏️ Cle</button>' +
-        '<button onclick="deleteProvider(\'' + provider.name + '\')" class="danger" style="margin:2px">🗑️</button>';
-    }
-  } catch(e) {
-    console.error('Error loading providers:', e);
-  }
+    workflow.steps.push(newStep);
+    renderWorkflow();
 }
 
-// Load models for a provider in config tab
-async function loadModelsForProvider(providerName) {
-  try {
-    var data = await api('/api/models/list/' + providerName, {}, "GET");
-    var container = document.getElementById('models_list');
+// Rendre le workflow dans l'UI
+function renderWorkflow() {
+    const container = document.getElementById('workflow-steps');
     if (!container) return;
     
-    if (data.length === 0) {
-      container.innerHTML = '<p>Aucun modele pour ce provider</p>';
-    } else {
-      var html = '<table><thead><tr><th>Cle modele</th><th>Nom affiche</th><th>Contexte</th><th>Action</th></tr></thead><tbody>';
-      for (var model of data) {
-        html += '<tr>' +
-          '<td>' + model.model_key + '</td>' +
-          '<td>' + model.display_name + '</td>' +
-          '<td>' + model.context_length + '</td>' +
-          '<td><button onclick="deleteModel(\'' + model.model_key + '\')" class="danger">🗑️</button></td>' +
-          '</tr>';
-      }
-      html += '</tbody></table>';
-      container.innerHTML = html;
+    if (workflow.steps.length === 0) {
+        container.innerHTML = `
+            <div class="empty-workflow">
+                <p>✨ Aucune étape dans votre workflow</p>
+                <p>Cliquez sur <strong>+ Ajouter une étape</strong> pour commencer</p>
+            </div>
+        `;
+        return;
     }
-  } catch(e) {
-    console.error('Error loading models:', e);
-  }
-}
-
-// Show add provider modal
-function showAddProviderModal() {
-  const nameInput = document.getElementById('provider_name');
-  const urlInput = document.getElementById('provider_url');
-  const keyInput = document.getElementById('provider_api_key');
-  if (nameInput) nameInput.value = '';
-  if (urlInput) urlInput.value = '';
-  if (keyInput) keyInput.value = '';
-  const modal = document.getElementById('addProviderModal');
-  if (modal) modal.style.display = 'block';
-}
-
-// Close modal
-function closeModal(modalId) {
-  const modal = document.getElementById(modalId);
-  if (modal) modal.style.display = 'none';
-}
-
-// Add provider
-async function addProvider() {
-  var name = document.getElementById('provider_name').value.trim();
-  var url = document.getElementById('provider_url').value.trim();
-  var apiKey = document.getElementById('provider_api_key').value;
-  
-  if (!name || !url) {
-    alert('Nom et URL sont requis');
-    return;
-  }
-  
-  try {
-    var result = await api('/api/providers/add', { name: name, url: url, api_key: apiKey });
-    if (result.success) {
-      alert(result.message);
-      closeModal('addProviderModal');
-      loadProvidersTable();
-      loadProvidersWithKeys();
-      loadAllProvidersForConfig();
-    } else {
-      alert('Erreur: ' + result.message);
-    }
-  } catch(e) {
-    alert('Erreur: ' + e.message);
-  }
-}
-
-// Edit API key
-async function editApiKey(providerName) {
-  var newKey = prompt('Entrez la nouvelle API key pour ' + providerName + ':');
-  if (newKey !== null) {
-    try {
-      var result = await api('/api/providers/update_api_key', { name: providerName, api_key: newKey });
-      if (result.success) {
-        alert(result.message);
-        loadProvidersTable();
-        loadProvidersWithKeys();
-      } else {
-        alert('Erreur: ' + result.message);
-      }
-    } catch(e) {
-      alert('Erreur: ' + e.message);
-    }
-  }
-}
-
-// Delete provider
-async function deleteProvider(providerName) {
-  if (confirm('Supprimer ' + providerName + ' et tous ses modeles ?')) {
-    try {
-      var result = await api('/api/providers/delete', { name: providerName }, "DELETE");
-      if (result.success) {
-        alert(result.message);
-        loadProvidersTable();
-        loadProvidersWithKeys();
-        loadAllProvidersForConfig();
-        var modelsList = document.getElementById('models_list');
-        if (modelsList) modelsList.innerHTML = '';
-        var providerSelect = document.getElementById('provider_select');
-        if (providerSelect) {
-          providerSelect.innerHTML = '<option value="">-- Selectionner un provider --</option>';
-        }
-        var modelSelect = document.getElementById('model_select');
-        if (modelSelect) {
-          modelSelect.innerHTML = '<option value="">-- Selectionnez d\'abord un provider --</option>';
-          modelSelect.disabled = true;
-        }
-      } else {
-        alert('Erreur: ' + result.message);
-      }
-    } catch(e) {
-      alert('Erreur: ' + e.message);
-    }
-  }
-}
-
-// Show add model modal
-function showAddModelModal() {
-  loadProviderSelectForModel();
-  const keyInput = document.getElementById('model_key');
-  const nameInput = document.getElementById('model_display_name');
-  const contextInput = document.getElementById('model_context');
-  if (keyInput) keyInput.value = '';
-  if (nameInput) nameInput.value = '';
-  if (contextInput) contextInput.value = '';
-  const modal = document.getElementById('addModelModal');
-  if (modal) modal.style.display = 'block';
-}
-
-// Load providers for select dropdown in add model modal
-async function loadProviderSelectForModel() {
-  try {
-    var data = await api('/api/providers/list', {}, "GET");
-    var select = document.getElementById('model_provider');
-    if (!select) return;
-    select.innerHTML = '<option value="">-- Selectionner un provider --</option>';
-    for (var provider of data) {
-      var option = document.createElement('option');
-      option.value = provider.name;
-      option.textContent = provider.name;
-      select.appendChild(option);
-    }
-  } catch(e) {
-    console.error('Error loading providers:', e);
-  }
-}
-
-// Add model
-async function addModel() {
-  var providerName = document.getElementById('model_provider').value;
-  var modelKey = document.getElementById('model_key').value.trim();
-  var displayName = document.getElementById('model_display_name').value.trim();
-  var contextLength = parseInt(document.getElementById('model_context').value);
-  
-  if (!providerName || !modelKey || !displayName || !contextLength) {
-    alert('Tous les champs sont requis');
-    return;
-  }
-  
-  try {
-    var result = await api('/api/models/add', {
-      provider_name: providerName,
-      model_key: modelKey,
-      display_name: displayName,
-      context_length: contextLength
+    
+    let html = '';
+    workflow.steps.forEach((step, index) => {
+        const statusIcon = getStatusIcon(step.status);
+        const resultPreview = step.result ? step.result.substring(0, 100) + '...' : '';
+        
+        html += `
+            <div class="workflow-step" data-step-id="${step.id}" data-step-index="${index}">
+                <div class="step-header">
+                    <div class="step-title">
+                        <span class="step-number">${index + 1}.</span>
+                        <span class="step-name">${step.name}</span>
+                        <span class="step-status ${step.status}">${statusIcon}</span>
+                    </div>
+                    <div class="step-actions">
+                        <button class="icon-btn" onclick="editStep(${index})" title="Configurer">⚙️</button>
+                        <button class="icon-btn" onclick="runStep(${index})" title="Exécuter">▶️</button>
+                        <button class="icon-btn" onclick="moveStepUp(${index})" ${index === 0 ? 'disabled' : ''}>⬆️</button>
+                        <button class="icon-btn" onclick="moveStepDown(${index})" ${index === workflow.steps.length - 1 ? 'disabled' : ''}>⬇️</button>
+                        <button class="icon-btn danger" onclick="deleteStep(${index})" title="Supprimer">🗑️</button>
+                    </div>
+                </div>
+                ${step.config && Object.keys(step.config).length > 0 ? `
+                    <div class="step-config">
+                        ${renderStepConfig(step)}
+                    </div>
+                ` : ''}
+                ${step.result ? `
+                    <div class="step-result">
+                        <details>
+                            <summary>📄 Résultat</summary>
+                            <div class="result-content">${escapeHtml(step.result)}</div>
+                            <div class="result-actions">
+                                <button onclick="copyStepResult(${index})">📋 Copier</button>
+                                <button onclick="useAsContext(${index})">📎 Utiliser comme contexte</button>
+                            </div>
+                        </details>
+                    </div>
+                ` : ''}
+                ${step.error ? `
+                    <div class="step-error">
+                        ❌ ${escapeHtml(step.error)}
+                    </div>
+                ` : ''}
+            </div>
+        `;
     });
-    if (result.success) {
-      alert(result.message);
-      closeModal('addModelModal');
-      loadModelsForProvider(providerName);
-      loadProvidersWithKeys();
-    } else {
-      alert('Erreur: ' + result.message);
-    }
-  } catch(e) {
-    alert('Erreur: ' + e.message);
-  }
+    
+    container.innerHTML = html;
 }
 
-// Delete model
-async function deleteModel(modelKey) {
-  if (confirm('Supprimer le modele ' + modelKey + ' ?')) {
+// Exécuter une étape spécifique
+async function runStep(stepIndex) {
+    const step = workflow.steps[stepIndex];
+    const stepDef = stepTypes[step.type];
+    
+    // Mettre à jour le statut
+    step.status = 'running';
+    step.error = null;
+    renderWorkflow();
+    
     try {
-      var result = await api('/api/models/delete', { model_key: modelKey }, "DELETE");
-      if (result.success) {
-        alert(result.message);
-        var providerSelect = document.getElementById('model_provider_select');
-        if (providerSelect && providerSelect.value) {
-          loadModelsForProvider(providerSelect.value);
+        // Récupérer le contexte (résultat de l'étape précédente si nécessaire)
+        const context = getContextForStep(stepIndex);
+        
+        // Préparer les données pour l'API
+        const apiData = {
+            text: workflow.document,
+            config: step.config,
+            context: context,
+            step_type: step.type
+        };
+        
+        // Appel API spécifique à l'étape
+        const endpointType = step.type === 'analyse' ? 'analyser' : step.type;
+        const result = await callWorkflowStep(endpointType, apiData);
+        // const result = await stepDef.execute(step, context);
+        step.status = 'success';
+        step.result = result;
+        stepResults[step.id] = result;
+        
+        // Si c'est une étape qui génère un document, proposer de l'utiliser pour la suite
+        if (step.type === 'analyse' || step.type === 'conclusions' || step.type === 'recherche') {
+            showNotification(`✅ ${step.name} terminé. Vous pouvez l'utiliser comme contexte pour les étapes suivantes.`);
         }
-        loadProvidersWithKeys();
-      } else {
-        alert('Erreur: ' + result.message);
-      }
-    } catch(e) {
-      alert('Erreur: ' + e.message);
+        
+    } catch (error) {
+        step.status = 'error';
+        step.error = error.message;
+        showNotification(`❌ Erreur: ${error.message}`, 'error');
     }
-  }
+    
+    renderWorkflow();
 }
 
-// Load document
-async function loadDocument() {
-  var file = document.getElementById('file_upload').files[0];
-  var directText = document.getElementById('direct_text').value;
-  
-  if (file) {
-    var formData = new FormData();
-    formData.append('file', file);
-    try {
-      var response = await fetch('/api/upload', { method: 'POST', body: formData });
-      var result = await response.json();
-      if (result.success) {
-        state.currentText = result.text;
-        state.text = result.text;
-        document.getElementById('doc_status').innerHTML = '<div class="success-msg">✅ ' + result.filename + ' charge</div>';
-        var analyseInfo = document.getElementById('analyse_info');
-        if (analyseInfo) analyseInfo.innerHTML = '<div class="info">📄 Document actif: ' + result.filename + '</div>';
-      } else {
-        document.getElementById('doc_status').innerHTML = '<div class="error">❌ ' + result.error + '</div>';
-      }
-    } catch(e) {
-      document.getElementById('doc_status').innerHTML = '<div class="error">❌ ' + e.message + '</div>';
-    }
-  } else if (directText) {
-    state.currentText = directText;
-    state.text = directText;
-    document.getElementById('doc_status').innerHTML = '<div class="success-msg">✅ Texte valide</div>';
-    var analyseInfo = document.getElementById('analyse_info');
-    if (analyseInfo) analyseInfo.innerHTML = '<div class="info">📄 Texte direct (' + state.currentText.length + ' caracteres)</div>';
-  } else {
-    document.getElementById('doc_status').innerHTML = '<div class="error">❌ Aucun document</div>';
-  }
-}
-
-// API call wrapper
-async function callApi(action) {
-  if (!state.currentText && action !== 'recherche' && action !== 'generer_prompt') {
-    alert("Veuillez d'abord charger un document");
-    return;
-  }
-  
-  var data = { text: state.currentText };
-  var resultDiv = 'analyse_result';
-  
-  switch(action) {
-    case 'analyser':
-      resultDiv = 'analyse_result';
-      break;
-    case 'conclusions':
-      resultDiv = 'analyse_result';
-      break;
-    case 'ameliorer':
-      resultDiv = 'analyse_result';
-      break;
-    case 'email':
-      resultDiv = 'email_result';
-      break;
-    case 'rediger':
-      data.acte_type = document.getElementById('acte_type').value;
-      data.instructions = document.getElementById('instructions').value;
-      resultDiv = 'redaction_result';
-      break;
-    case 'recherche':
-      data.query = document.getElementById('search_query').value || state.currentText;
-      resultDiv = 'recherche_result';
-      break;
-    case 'analyse_dossier':
-      var files = document.getElementById('dossier_files').files;
-      if (files.length === 0) { alert('Selectionnez des fichiers'); return; }
-      var formData = new FormData();
-      for (var i = 0; i < files.length; i++) formData.append('files', files[i]);
-      try {
-        var response = await fetch('/api/analyse_dossier', { method: 'POST', body: formData });
-        var result = await response.json();
-        var dossierResult = document.getElementById('dossier_result');
-        if (dossierResult) dossierResult.innerHTML = '<div class="result-box">' + result.result + '</div>';
-        state.lastResult = result.result;
-        var lastResultElement = document.getElementById('last_result');
-        if (lastResultElement) lastResultElement.innerHTML = '<div class="result-box">' + result.result + '</div>';
-      } catch(e) {
-        var dossierResult = document.getElementById('dossier_result');
-        if (dossierResult) dossierResult.innerHTML = '<div class="error">❌ ' + e.message + '</div>';
-      }
-      return;
-    case 'preparer_audience':
-      resultDiv = 'audience_result';
-      break;
-    case 'generer_arguments':
-      resultDiv = 'arguments_result';
-      break;
-    case 'generer_prompt':
-      data.prompt_type = document.getElementById('prompt_type').value;
-      data.situation = document.getElementById('situation').value;
-      if (!data.situation) { alert('Decrivez votre situation'); return; }
-      resultDiv = 'prompt_result';
-      break;
-    case 'appliquer_tampon':
-      data.config = {
-        avocat: {
-          nom: document.getElementById('nom').value,
-          prenom: document.getElementById('prenom').value,
-          barreau: document.getElementById('barreau').value
+// Exécuter toutes les étapes séquentiellement
+async function executeAllSteps() {
+    for (let i = 0; i < workflow.steps.length; i++) {
+        if (workflow.steps[i].status !== 'success') {
+            await runStep(i);
         }
-      };
-      resultDiv = 'tampon_result';
-      break;
-    default:
-      return;
-  }
-  
-  var resultElement = document.getElementById(resultDiv);
-  if (resultElement) {
-    resultElement.innerHTML = '<div class="loading">Traitement en cours...</div>';
-  }
-  
-  try {
-    var result = await api('/api/' + action, data);
-    if (result.result) {
-      if (resultElement) {
-        resultElement.innerHTML = '<div class="result-box">' + result.result.replace(/\n/g, '<br>') + '</div>';
-      }
-      state.lastResult = result.result;
-      var lastResultElement = document.getElementById('last_result');
-      if (lastResultElement) {
-        lastResultElement.innerHTML = '<div class="result-box">' + result.result.replace(/\n/g, '<br>') + '</div>';
-      }
+    }
+    showNotification('✅ Workflow complété !');
+}
+
+// Obtenir le contexte pour une étape (résultat de l'étape précédente)
+function getContextForStep(stepIndex) {
+    if (stepIndex === 0) return null;
+    
+    const previousStep = workflow.steps[stepIndex - 1];
+    if (previousStep && previousStep.result) {
+        return {
+            type: previousStep.type,
+            result: previousStep.result
+        };
+    }
+    return null;
+}
+async function callWorkflowStep(stepType, data) {
+    let finalText = data.text;
+    
+    // Si un contexte existe, l'ajouter au texte
+    if (data.context && data.context.result) {
+        finalText = `[RÉSULTAT PRÉCÉDENT]\n${data.context.result}\n\n[DOCUMENT ORIGINAL]\n${data.text}`;
+    }
+    
+    const endpoint = `/api/${stepType}`;
+    const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            ...data,
+            text: finalText  // ← Texte enrichi avec le contexte
+        })
+    });
+    
+    const result = await response.json();
+    if (result.error) throw new Error(result.error);
+    return result.result;
+}
+
+// Sauvegarder le workflow
+async function saveWorkflow() {
+    const workflowData = {
+        name: workflow.name,
+        document: workflow.document,
+        steps: workflow.steps.map(step => ({
+            type: step.type,
+            config: step.config,
+            status: step.status,
+            result: step.result
+        }))
+    };
+    
+    localStorage.setItem('saved_workflow', JSON.stringify(workflowData));
+    showNotification('💾 Workflow sauvegardé');
+}
+
+// Charger un workflow sauvegardé
+function loadWorkflow() {
+    const saved = localStorage.getItem('saved_workflow');
+    if (saved) {
+        const loaded = JSON.parse(saved);
+        workflow.name = loaded.name;
+        workflow.document = loaded.document;
+        workflow.steps = loaded.steps.map(step => ({
+            ...step,
+            id: Date.now() + Math.random(),
+            status: 'pending' // Reset status on load
+        }));
+        renderWorkflow();
+        showNotification('📂 Workflow chargé');
     } else {
-      if (resultElement) {
-        resultElement.innerHTML = '<div class="error">❌ ' + (result.error || 'Erreur inconnue') + '</div>';
-      }
+        showNotification('Aucun workflow sauvegardé', 'error');
     }
-  } catch(e) {
-    if (resultElement) {
-      resultElement.innerHTML = '<div class="error">❌ ' + e.message + '</div>';
-    }
-  }
 }
 
-function downloadResult() {
-  if (state.lastResult) {
-    var blob = new Blob([state.lastResult], { type: 'text/plain' });
-    var a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'resultat_' + Date.now() + '.txt';
-    a.click();
-  } else {
-    alert('Aucun resultat a telecharger');
-  }
-}
-
-function copyResult() {
-  if (state.lastResult) {
-    navigator.clipboard.writeText(state.lastResult);
-    alert('✅ Copie dans le presse-papier');
-  }
-}
-
-async function quitApp() {
-  if (confirm('Etes-vous sur de vouloir quitter ?')) {
-    try {
-      await fetch('/api/shutdown', { method: 'POST' });
-    } catch(e) {}
-    setTimeout(function() { window.close(); }, 500);
-  }
-}
-
-// Écouteurs d'événements pour les boutons principaux
-document.addEventListener('DOMContentLoaded', function() {
-  // Initialisation des providers
-  loadProvidersWithKeys();
-  loadProvidersTable();
-  loadAllProvidersForConfig();
-  
-  // Écouteurs pour les sliders
-  const tempSlider = document.getElementById('temperature');
-  const tempSpan = document.getElementById('temp_value');
-  if (tempSlider && tempSpan) {
-    tempSlider.oninput = function() { tempSpan.innerText = this.value; };
-  }
-  
-  const tokensSlider = document.getElementById('max_tokens');
-  const tokensSpan = document.getElementById('tokens_value');
-  if (tokensSlider && tokensSpan) {
-    tokensSlider.oninput = function() { tokensSpan.innerText = this.value; };
-  }
-  
-  // Écouteurs pour les providers
-  const providerSelect = document.getElementById('provider_select');
-  if (providerSelect) {
-    providerSelect.onchange = loadModelsForProviderSelect;
-  }
-  
-  const modelProviderSelect = document.getElementById('model_provider_select');
-  if (modelProviderSelect) {
-    modelProviderSelect.onchange = function() { loadModelsForProvider(this.value); };
-  }
-  
-  // Écouteurs pour les boutons principaux
-  const initBtn = document.getElementById('initBtn');
-  if (initBtn) initBtn.onclick = initAssistant;
-  
-  const loadDocBtn = document.getElementById('loadDocBtn');
-  if (loadDocBtn) loadDocBtn.onclick = loadDocument;
-  
-  const quitBtn = document.getElementById('quitBtn');
-  if (quitBtn) quitBtn.onclick = quitApp;
-  
-  // Boutons des onglets d'action
-  const analyserBtn = document.getElementById('analyserBtn');
-  if (analyserBtn) analyserBtn.onclick = () => callApi('analyser');
-  
-  const conclusionsBtn = document.getElementById('conclusionsBtn');
-  if (conclusionsBtn) conclusionsBtn.onclick = () => callApi('conclusions');
-  
-  const ameliorerBtn = document.getElementById('ameliorerBtn');
-  if (ameliorerBtn) ameliorerBtn.onclick = () => callApi('ameliorer');
-  
-  const emailBtn = document.getElementById('emailBtn');
-  if (emailBtn) emailBtn.onclick = () => callApi('email');
-  
-  const redigerBtn = document.getElementById('redigerBtn');
-  if (redigerBtn) redigerBtn.onclick = () => callApi('rediger');
-  
-  const rechercheBtn = document.getElementById('rechercheBtn');
-  if (rechercheBtn) rechercheBtn.onclick = () => callApi('recherche');
-  
-  const analyseDossierBtn = document.getElementById('analyseDossierBtn');
-  if (analyseDossierBtn) analyseDossierBtn.onclick = () => callApi('analyse_dossier');
-  
-  const preparerAudienceBtn = document.getElementById('preparerAudienceBtn');
-  if (preparerAudienceBtn) preparerAudienceBtn.onclick = () => callApi('preparer_audience');
-  
-  const genererArgumentsBtn = document.getElementById('genererArgumentsBtn');
-  if (genererArgumentsBtn) genererArgumentsBtn.onclick = () => callApi('generer_arguments');
-  
-  const genererPromptBtn = document.getElementById('genererPromptBtn');
-  if (genererPromptBtn) genererPromptBtn.onclick = () => callApi('generer_prompt');
-  
-  const appliquerTamponBtn = document.getElementById('appliquerTamponBtn');
-  if (appliquerTamponBtn) appliquerTamponBtn.onclick = () => callApi('appliquer_tampon');
-  
-  const addProviderBtn = document.getElementById('addProviderBtn');
-  if (addProviderBtn) addProviderBtn.onclick = showAddProviderModal;
-  
-  const addModelBtn = document.getElementById('addModelBtn');
-  if (addModelBtn) addModelBtn.onclick = showAddModelModal;
-  
-  const downloadResultBtn = document.getElementById('downloadResultBtn');
-  if (downloadResultBtn) downloadResultBtn.onclick = downloadResult;
-  
-  const copyResultBtn = document.getElementById('copyResultBtn');
-  if (copyResultBtn) copyResultBtn.onclick = copyResult;
+// ========== INITIALISATION ==========
+document.addEventListener('DOMContentLoaded', () => {
+    // Configurer les écouteurs
+    document.getElementById('addStepBtn')?.addEventListener('click', addStep);
+    document.getElementById('executeAllBtn')?.addEventListener('click', executeAllSteps);
+    document.getElementById('saveWorkflowBtn')?.addEventListener('click', saveWorkflow);
+    document.getElementById('loadWorkflowBtn')?.addEventListener('click', loadWorkflow);
+    document.getElementById('loadDocBtn')?.addEventListener('click', loadDocument);
+    document.getElementById('initBtn')?.addEventListener('click', initAssistant);
+    
+    // Charger les providers
+    loadProvidersWithKeys();
+    
+    // Initialiser le workflow vide
+    renderWorkflow();
 });
+
+// Helper: Échapper le HTML
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Helper: Afficher une notification
+function showNotification(message, type = 'success') {
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    setTimeout(() => notification.remove(), 3000);
+}
+
+
+// /////////////////// NEW ////////////////////////////////
+// ========== FONCTIONS MANQUANTES À AJOUTER ==========
+
+// Fonction pour obtenir l'icône de statut
+function getStatusIcon(status) {
+    switch(status) {
+        case 'pending':
+            return '⏳ En attente';
+        case 'running':
+            return '🔄 En cours...';
+        case 'success':
+            return '✅ Terminé';
+        case 'error':
+            return '❌ Erreur';
+        default:
+            return '⚪ Inconnu';
+    }
+}
+
+// Fonction pour charger un document (version workflow)
+async function loadDocument() {
+    const fileInput = document.getElementById('file_upload');
+    const textarea = document.getElementById('direct_text');
+    const statusDiv = document.getElementById('doc_status');
+    const dossierNameSpan = document.getElementById('dossier_name');
+    
+    const file = fileInput ? fileInput.files[0] : null;
+    const directText = textarea ? textarea.value : "";
+    
+    if (file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        if (statusDiv) statusDiv.innerHTML = '<div class="loading">📤 Upload en cours...</div>';
+        
+        try {
+            const response = await fetch('/api/upload', { method: 'POST', body: formData });
+            const result = await response.json();
+            
+            if (result.success) {
+                workflow.document = result.text;
+                if (statusDiv) statusDiv.innerHTML = `<div class="success-msg">✅ ${result.filename} chargé (${result.text.length} caractères)</div>`;
+                if (dossierNameSpan) dossierNameSpan.textContent = result.filename;
+                
+                // Mettre à jour l'info dans le workflow
+                const dossierInfo = document.querySelector('.dossier-info strong');
+                if (dossierInfo) dossierInfo.textContent = result.filename;
+                
+                showNotification(`📄 Document chargé : ${result.filename}`);
+            } else {
+                if (statusDiv) statusDiv.innerHTML = `<div class="error">❌ ${result.error}</div>`;
+                showNotification(`Erreur: ${result.error}`, 'error');
+            }
+        } catch(e) {
+            if (statusDiv) statusDiv.innerHTML = `<div class="error">❌ ${e.message}</div>`;
+            showNotification(`Erreur: ${e.message}`, 'error');
+        }
+    } 
+    else if (directText && directText.trim()) {
+        workflow.document = directText;
+        if (statusDiv) statusDiv.innerHTML = `<div class="success-msg">✅ Texte direct chargé (${directText.length} caractères)</div>`;
+        if (dossierNameSpan) dossierNameSpan.textContent = "Texte direct";
+        
+        const dossierInfo = document.querySelector('.dossier-info strong');
+        if (dossierInfo) dossierInfo.textContent = "Texte direct";
+        
+        showNotification(`📝 Texte direct chargé (${directText.length} caractères)`);
+    } 
+    else {
+        if (statusDiv) statusDiv.innerHTML = '<div class="error">❌ Aucun document sélectionné</div>';
+        showNotification('Aucun document à charger', 'error');
+    }
+}
+
+// Fonction pour éditer une étape
+function editStep(stepIndex) {
+    const step = workflow.steps[stepIndex];
+    const stepDef = stepTypes[step.type];
+    
+    currentEditingStepIndex = stepIndex;
+    
+    const modal = document.getElementById('stepModal');
+    const modalTitle = document.getElementById('modal_title');
+    const modalFields = document.getElementById('modal_fields');
+    
+    if (!modal || !modalFields) return;
+    
+    modalTitle.textContent = `Configurer : ${stepDef.name}`;
+    
+    // Générer les champs du formulaire
+    let fieldsHtml = '';
+    if (stepDef.fields && stepDef.fields.length > 0) {
+        stepDef.fields.forEach(field => {
+            const currentValue = step.config[field.name] || '';
+            
+            if (field.type === 'select') {
+                fieldsHtml += `
+                    <label>${field.label}</label>
+                    <select id="modal_field_${field.name}">
+                        ${field.options.map(opt => `
+                            <option value="${opt.value}" ${currentValue === opt.value ? 'selected' : ''}>${opt.label}</option>
+                        `).join('')}
+                    </select>
+                `;
+            } else if (field.type === 'textarea') {
+                fieldsHtml += `
+                    <label>${field.label}</label>
+                    <textarea id="modal_field_${field.name}" rows="3" placeholder="${field.placeholder || ''}">${escapeHtml(currentValue)}</textarea>
+                `;
+            } else {
+                fieldsHtml += `
+                    <label>${field.label}</label>
+                    <input type="${field.type || 'text'}" id="modal_field_${field.name}" value="${escapeHtml(currentValue)}" placeholder="${field.placeholder || ''}">
+                `;
+            }
+        });
+    } else {
+        fieldsHtml = '<p class="text-muted">Aucune configuration nécessaire pour cette étape.</p>';
+    }
+    
+    modalFields.innerHTML = fieldsHtml;
+    modal.style.display = 'block';
+}
+
+// Fermer le modal
+function closeStepModal() {
+    const modal = document.getElementById('stepModal');
+    if (modal) modal.style.display = 'none';
+    currentEditingStepIndex = null;
+}
+
+// Sauvegarder la configuration de l'étape
+function saveStepConfig() {
+    if (currentEditingStepIndex === null) return;
+    
+    const step = workflow.steps[currentEditingStepIndex];
+    const stepDef = stepTypes[step.type];
+    
+    if (stepDef.fields && stepDef.fields.length > 0) {
+        stepDef.fields.forEach(field => {
+            const fieldElement = document.getElementById(`modal_field_${field.name}`);
+            if (fieldElement) {
+                step.config[field.name] = fieldElement.value;
+            }
+        });
+    }
+    
+    closeStepModal();
+    renderWorkflow();
+    showNotification(`✅ Configuration de "${step.name}" enregistrée`);
+}
+
+// Déplacer une étape vers le haut
+function moveStepUp(stepIndex) {
+    if (stepIndex === 0) return;
+    const temp = workflow.steps[stepIndex];
+    workflow.steps[stepIndex] = workflow.steps[stepIndex - 1];
+    workflow.steps[stepIndex - 1] = temp;
+    renderWorkflow();
+    showNotification('⬆️ Ordre modifié');
+}
+
+// Déplacer une étape vers le bas
+function moveStepDown(stepIndex) {
+    if (stepIndex === workflow.steps.length - 1) return;
+    const temp = workflow.steps[stepIndex];
+    workflow.steps[stepIndex] = workflow.steps[stepIndex + 1];
+    workflow.steps[stepIndex + 1] = temp;
+    renderWorkflow();
+    showNotification('⬇️ Ordre modifié');
+}
+
+// Supprimer une étape
+function deleteStep(stepIndex) {
+    if (confirm('Supprimer cette étape ?')) {
+        workflow.steps.splice(stepIndex, 1);
+        renderWorkflow();
+        showNotification('🗑️ Étape supprimée');
+    }
+}
+
+// Copier le résultat d'une étape
+function copyStepResult(stepIndex) {
+    const step = workflow.steps[stepIndex];
+    if (step && step.result) {
+        navigator.clipboard.writeText(step.result);
+        showNotification('📋 Résultat copié dans le presse-papier');
+    }
+}
+
+// Utiliser le résultat d'une étape comme contexte pour la suivante
+function useAsContext(stepIndex) {
+    const step = workflow.steps[stepIndex];
+    if (step && step.result) {
+        // Stocker dans un contexte global
+        window.globalContext = {
+            source: step.type,
+            content: step.result,
+            timestamp: new Date().toISOString()
+        };
+        showNotification(`📎 Résultat de "${step.name}" disponible comme contexte pour les étapes suivantes`);
+        
+        // Ajouter un indicateur visuel
+        const stepElement = document.querySelector(`.workflow-step[data-step-index="${stepIndex}"]`);
+        if (stepElement) {
+            stepElement.style.borderLeft = '3px solid #ffc107';
+            setTimeout(() => {
+                stepElement.style.borderLeft = '';
+            }, 2000);
+        }
+    }
+}
+
+// Rendre la configuration d'une étape (pour l'affichage)
+function renderStepConfig(step) {
+    const stepDef = stepTypes[step.type];
+    if (!stepDef.fields || stepDef.fields.length === 0) return '';
+    
+    let html = '<div class="step-config-details">';
+    stepDef.fields.forEach(field => {
+        const value = step.config[field.name];
+        if (value && value.trim()) {
+            html += `
+                <div class="config-item">
+                    <strong>${field.label}:</strong> 
+                    <span>${escapeHtml(value.length > 50 ? value.substring(0, 50) + '...' : value)}</span>
+                </div>
+            `;
+        }
+    });
+    html += '</div>';
+    return html;
+}
+
+// Initialiser l'assistant (version workflow)
+async function initAssistant() {
+    const providerName = document.getElementById('provider_select').value;
+    const modelKey = document.getElementById('model_select').value;
+    const temperature = parseFloat(document.getElementById('temperature').value);
+    const maxTokens = parseInt(document.getElementById('max_tokens').value);
+    const statusDiv = document.getElementById('init_status');
+    
+    if (!providerName) {
+        alert('Veuillez d\'abord sélectionner un provider');
+        return;
+    }
+    
+    if (!modelKey) {
+        alert('Veuillez sélectionner un modèle');
+        return;
+    }
+    
+    if (statusDiv) statusDiv.innerHTML = '<div class="loading">Initialisation...</div>';
+    
+    try {
+        const response = await fetch('/api/init', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                provider_name: providerName,
+                model_key: modelKey,
+                temperature: temperature,
+                max_tokens: maxTokens
+            })
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            if (statusDiv) statusDiv.innerHTML = `<div class="success-msg">✅ Assistant initialisé avec ${result.model_display}</div>`;
+            showNotification(`🚀 Assistant prêt : ${result.model_display}`);
+        } else {
+            if (statusDiv) statusDiv.innerHTML = `<div class="error">❌ ${result.error}</div>`;
+            showNotification(`Erreur: ${result.error}`, 'error');
+        }
+    } catch(e) {
+        if (statusDiv) statusDiv.innerHTML = `<div class="error">❌ ${e.message}</div>`;
+        showNotification(`Erreur: ${e.message}`, 'error');
+    }
+}
+
+// Mettre à jour la fonction renderWorkflow pour utiliser getStatusIcon
+// (Assurez-vous que renderWorkflow utilise bien getStatusIcon)
+
+// Recharger les providers (version workflow)
+async function loadProvidersWithKeys() {
+    try {
+        const response = await fetch('/api/providers/with_keys');
+        const providers = await response.json();
+        const select = document.getElementById('provider_select');
+        if (!select) return;
+        
+        select.innerHTML = '<option value="">-- Sélectionner un provider --</option>';
+        
+        if (providers.length === 0) {
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.disabled = true;
+            opt.textContent = "Aucun provider - Configurez vos clés dans l'onglet Configuration";
+            select.appendChild(opt);
+        } else {
+            providers.forEach(provider => {
+                const option = document.createElement('option');
+                option.value = provider.name;
+                const modelText = provider.models_count === 1 ? 'modèle' : 'modèles';
+                option.textContent = `${provider.name} (${provider.models_count} ${modelText})`;
+                select.appendChild(option);
+            });
+        }
+    } catch(e) {
+        console.error('Error loading providers:', e);
+        const select = document.getElementById('provider_select');
+        if (select) select.innerHTML = '<option value="">Erreur de chargement</option>';
+    }
+}
+
+// Charger les modèles quand on change de provider
+async function loadModelsForProviderSelect() {
+    const providerName = document.getElementById('provider_select').value;
+    const modelSelect = document.getElementById('model_select');
+    
+    if (!providerName) {
+        modelSelect.innerHTML = '<option value="">-- Sélectionnez d\'abord un provider --</option>';
+        modelSelect.disabled = true;
+        return;
+    }
+    
+    modelSelect.innerHTML = '<option value="">Chargement...</option>';
+    modelSelect.disabled = true;
+    
+    try {
+        const response = await fetch('/api/models/available/' + encodeURIComponent(providerName));
+        const models = await response.json();
+        
+        modelSelect.innerHTML = '<option value="">-- Sélectionner un modèle --</option>';
+        models.forEach(model => {
+            const option = document.createElement('option');
+            option.value = model.model_key;
+            option.textContent = model.display_name + ' (' + model.context_length + ' tokens)';
+            modelSelect.appendChild(option);
+        });
+        modelSelect.disabled = false;
+    } catch(e) {
+        modelSelect.innerHTML = '<option value="">Erreur de chargement</option>';
+    }
+}
+
