@@ -110,13 +110,13 @@ IMPORTANT : Veillez à intégrer ces instructions dans la rédaction de l'acte (
 {texte[:6000]}"""
 
     system_prompt = f"Tu es un expert en rédaction d'actes juridiques (droit français). Tu rédiges un {type_acte} clair, complet, conforme et exécutoire."
-    modele_actif = llm_client.modele_actif
+    # modele_actif = llm_client.modele_actif
     
-    logger.debug(f"Appel API - Modèle: {modele_actif}, Température: 0.3")
+    # logger.debug(f"Appel API - Modèle: {modele_actif}, Température: 0.3")
     
     try:
-        result = llm_client.call_llm(prompt, system_prompt, modele_actif, temperature=0.3)
-
+        # result = llm_client.call_llm(prompt, system_prompt, modele_actif, temperature=0.3)
+        result = llm_client.call_llm(prompt, system_prompt)
         # Vérification du résultat
         if result is None:
             logger.error("❌ Résultat API None")

@@ -1,1 +1,6 @@
+llm_providers.db
 .ipynb_checkpoints
+0-DELETE/
+utils/__pycache__/
+output/
+venv/

@@ -31,13 +31,13 @@ IV. CONCLUSION ET PRÉCONISATIONS
 Dossier: {texte[:6000]}"""
 
     system_prompt = "Tu rédiges des conclusions juridiques claires, structurées et argumentées en droit français."
-    modele_actif = llm_client.modele_actif
+    # modele_actif = llm_client.modele_actif
     
-    logger.debug(f"Appel API - Modèle: {modele_actif}, Température: 0.4")
+    # logger.debug(f"Appel API - Modèle: {modele_actif}, Température: 0.4")
     
     try:
-        result = llm_client.call_llm(prompt, system_prompt, modele_actif, temperature=0.4)
-
+        # result = llm_client.call_llm(prompt, system_prompt, modele_actif, temperature=0.4)
+        result = llm_client.call_llm(prompt, system_prompt)
         # Vérification du résultat
         if result is None:
             logger.error("❌ Résultat API None")

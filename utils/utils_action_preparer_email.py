@@ -28,13 +28,13 @@ Contenu: {contenu[:2000]}
 Structure: Objet, formule d'appel, introduction, corps, conclusion, formule de politesse."""
 
     system_prompt = "Tu rédiges des emails professionnels pour avocats. Sois clair et courtois."
-    modele_actif = llm_client.modele_actif
+    # modele_actif = llm_client.modele_actif
     
-    logger.debug(f"Appel API - Modèle: {modele_actif}, Température: 0.4")
+    # logger.debug(f"Appel API - Modèle: {modele_actif}, Température: 0.4")
     
     try:
-        result = llm_client.call_llm(prompt, system_prompt, modele_actif, temperature=0.4)
-
+        # result = llm_client.call_llm(prompt, system_prompt, modele_actif, temperature=0.4)
+        result = llm_client.call_llm(prompt, system_prompt)
         # Vérification du résultat
         if result is None:
             logger.error("❌ Résultat API None")

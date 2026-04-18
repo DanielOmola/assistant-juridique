@@ -39,17 +39,18 @@ Analyse :
 """
 
     system_prompt = "Tu es un avocat plaidant expérimenté en droit français."
-    modele_actif = llm_client.modele_actif
+    # modele_actif = llm_client.modele_actif
 
-    logger.debug(f"Appel API audience - Modèle: {modele_actif}, Température: 0.3")
+    # logger.debug(f"Appel API audience - Modèle: {modele_actif}, Température: 0.3")
 
     try:
-        result = llm_client.call_llm(
-            prompt,
-            system_prompt,
-            modele_actif,
-            temperature=0.3
-        )
+        # result = llm_client.call_llm(
+        #     prompt,
+        #     system_prompt,
+        #     modele_actif,
+        #     temperature=0.3
+        # )
+        result = llm_client.call_llm(prompt, system_prompt)
 
         if result is None:
             logger.error("❌ Résultat API None")

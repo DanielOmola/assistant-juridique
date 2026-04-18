@@ -23,12 +23,13 @@ Fournis:
 Document: {texte[:6000]}"""
 
     system_prompt = "Tu es un avocat expert en droit français. Réponds de manière structurée et précise."
-    modele_actif = llm_client.modele_actif
+    # modele_actif = llm_client.modele_actif
     
-    logger.debug(f"Appel API - Modèle: {modele_actif}, Température: 0.3")
+    # logger.debug(f"Appel API - Modèle: {modele_actif}, Température: 0.3")
     
     try:
-        result = llm_client.call_llm(prompt, system_prompt, modele_actif, temperature=0.3)
+        # result = llm_client.call_llm(prompt, system_prompt, modele_actif, temperature=0.3)
+        result = llm_client.call_llm(prompt, system_prompt)
 
         if result.get("error"):
             logger.error(f"❌ Erreur API: {result['error']}")

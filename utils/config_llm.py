@@ -1,4 +1,4 @@
-from google.colab import userdata
+# from google.colab import userdata
 
 # def get_api_keys():
 #     # ========== LISTE DES CLÉS API ATTENDUES ==========

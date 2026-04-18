@@ -32,12 +32,13 @@ Texte: {texte[:6000]}
 Retourne UNIQUEMENT le texte amélioré."""
 
     system_prompt = "Expert en rédaction juridique française. Améliore le texte sans ajouter de commentaires."
-    modele_actif = llm_client.modele_actif
+    # modele_actif = llm_client.modele_actif
     
-    logger.debug(f"Appel API - Modèle: {modele_actif}, Température: 0.3")
+    # logger.debug(f"Appel API - Modèle: {modele_actif}, Température: 0.3")
     
     try:
-        result = llm_client.call_llm(prompt, system_prompt, modele_actif, temperature=0.3)
+        # result = llm_client.call_llm(prompt, system_prompt, modele_actif, temperature=0.3)
+        result = llm_client.call_llm(prompt, system_prompt)
 
         # Vérification du résultat
         if result is None:

@@ -1,6 +1,6 @@
 # ========== FONCTION RECHERCHE DALLOZ ==========
 import urllib.parse
-from IPython.display import display, HTML
+# from IPython.display import display, HTML
 from utils.utils_logging import get_logger
 
 logger = get_logger(__name__)

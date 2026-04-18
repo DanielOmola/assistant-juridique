@@ -36,20 +36,21 @@ Analyse :
 
     system_prompt = "Tu es un avocat adverse expérimenté en droit français."
     
-    modele_actif = llm_client.modele_actif if hasattr(llm_client, 'modele_actif') else None
+    # modele_actif = llm_client.modele_actif if hasattr(llm_client, 'modele_actif') else None
 
-    if not modele_actif:
-        logger.error("❌ Aucun modèle actif")
-        return "❌ Erreur: Aucun modèle actif"
-    logger.debug(f"Appel API adversaire - Modèle: {modele_actif}, Température: 0.5")
+    # if not modele_actif:
+    #     logger.error("❌ Aucun modèle actif")
+    #     return "❌ Erreur: Aucun modèle actif"
+    # logger.debug(f"Appel API adversaire - Modèle: {modele_actif}, Température: 0.5")
 
     try:
-        result = llm_client.call_llm(
-            prompt,
-            system_prompt,
-            modele_actif,
-            temperature=0.5
-        )
+        # result = llm_client.call_llm(
+        #     prompt,
+        #     system_prompt,
+        #     modele_actif,
+        #     temperature=0.5
+        # )
+        result = llm_client.call_llm(prompt, system_prompt)
 
         # Vérification du résultat
         if result is None:

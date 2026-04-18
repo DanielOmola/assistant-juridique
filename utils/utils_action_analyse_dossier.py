@@ -51,19 +51,21 @@ Texte :
 """
 
     system_prompt = "Tu es un avocat expert en droit français."
-    modele_actif = llm_client.modele_actif if hasattr(llm_client, 'modele_actif') else None
+    # modele_actif = llm_client.modele_actif if hasattr(llm_client, 'modele_actif') else None
 
-    if not modele_actif:
-        logger.error("❌ Aucun modèle actif")
-        return ""
+    # if not modele_actif:
+    #     logger.error("❌ Aucun modèle actif")
+    #     return ""
 
     try:
-        result = llm_client.call_llm(
-            prompt,
-            system_prompt,
-            modele_actif,
-            temperature=0.3
-        )
+        # result = llm_client.call_llm(
+        #     prompt,
+        #     system_prompt,
+        #     modele_actif,
+        #     temperature=0.3
+        # )
+        result = llm_client.call_llm(prompt, system_prompt)
+
 
         if not result:
             logger.error("❌ Résultat None")
