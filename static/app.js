@@ -667,7 +667,7 @@ async function initAssistant() {
             showNotification(`🚀 Assistant prêt : ${result.model_display}`);
         } else {
             if (statusDiv) statusDiv.innerHTML = `<div class="error">❌ ${result.error}</div>`;
-            showNotification(`Erreur: ${result.error}`, 'error');
+            showNotification(`Erreur: ${result.error}, Detail: ${result.body}` , 'error');
         }
     } catch(e) {
         if (statusDiv) statusDiv.innerHTML = `<div class="error">❌ ${e.message}</div>`;
@@ -746,3 +746,169 @@ let workflowHistory = {
     steps: [],           // Historique de toutes les étapes exécutées
     currentContext: null // Contexte cumulé
 };
+
+// Afficher l'interface de configuration dans un modal simple
+function showConfigModal() {
+    const modalHtml = `
+        <div id="simpleConfigModal" class="modal" style="display:block">
+            <div class="modal-content" style="width:700px; max-width:90%">
+                <span class="close" onclick="closeModal('simpleConfigModal')">&times;</span>
+                <h3>🔧 Configuration des providers</h3>
+                <div id="simpleConfigContent">Chargement...</div>
+            </div>
+        </div>
+    `;
+    
+    // Ajouter le modal au body s'il n'existe pas
+    if (!document.getElementById('simpleConfigModal')) {
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    } else {
+        document.getElementById('simpleConfigModal').style.display = 'block';
+    }
+    
+    // Charger le contenu
+    loadSimpleConfigContent();
+}
+
+async function loadSimpleConfigContent() {
+    const container = document.getElementById('simpleConfigContent');
+    if (!container) return;
+    
+    try {
+        // 1. Charger les providers
+        const providersRes = await fetch('/api/providers/list');
+        const providers = await providersRes.json();
+        
+        let html = '<h4>📋 Providers existants</h4>';
+        html += '<table style="width:100%; margin-bottom:20px; border-collapse:collapse">';
+        html += '<thead><tr style="background:#f0f2f6"><th>Nom</th><th>URL</th><th>API Key</th><th>Action</th></tr></thead><tbody>';
+        
+        for (const p of providers) {
+            const maskedKey = p.api_key ? '•••' + p.api_key.slice(-6) : '❌ Non configurée';
+            html += `
+                <tr style="border-bottom:1px solid #ddd">
+                    <td style="padding:8px"><strong>${p.name}</strong></td>
+                    <td style="padding:8px">${p.url}</td>
+                    <td style="padding:8px">${maskedKey}</td>
+                    <td style="padding:8px">
+                        <button onclick="editProviderKey('${p.name}')" style="margin:2px">✏️ Clé</button>
+                        <button onclick="deleteProviderSimple('${p.name}')" class="danger" style="margin:2px">🗑️</button>
+                    </td>
+                </tr>
+            `;
+        }
+        html += '</tbody></table>';
+        
+        // 2. Formulaire pour ajouter un provider
+        html += '<hr><h4>➕ Ajouter un provider</h4>';
+        html += '<div style="display:flex; gap:10px; flex-wrap:wrap">';
+        html += '<input type="text" id="newProviderName" placeholder="Nom (ex: deepseek)" style="flex:1">';
+        html += '<input type="text" id="newProviderUrl" placeholder="URL API" style="flex:2">';
+        html += '<input type="password" id="newProviderKey" placeholder="API Key (optionnel)" style="flex:1">';
+        html += '<button onclick="addProviderSimple()" class="success">➕ Ajouter</button>';
+        html += '</div>';
+        
+        // 3. Afficher les modèles disponibles (depuis les providers avec clé)
+        html += '<hr><h4>📚 Modèles disponibles</h4>';
+        html += '<div id="simpleModelsList">Chargement...</div>';
+        
+        container.innerHTML = html;
+        
+        // 4. Charger les modèles disponibles via /api/providers/with_keys
+        const modelsRes = await fetch('/api/providers/with_keys');
+        const providersWithKeys = await modelsRes.json();
+        
+        let modelsHtml = '<table style="width:100%; border-collapse:collapse"><thead><tr style="background:#f0f2f6"><th>Provider</th><th>Modèles disponibles</th></tr></thead><tbody>';
+        
+        for (const p of providersWithKeys) {
+            // Récupérer les modèles pour ce provider
+            const modelRes = await fetch(`/api/models/list/${p.name}`);
+            const models = await modelRes.json();
+            
+            if (models.length > 0) {
+                modelsHtml += `<tr style="border-bottom:1px solid #ddd"><td style="padding:8px"><strong>${p.name}</strong></td><td style="padding:8px">`;
+                models.forEach(m => {
+                    modelsHtml += `<div>📌 ${m.display_name} (${m.context_length} tokens)</div>`;
+                });
+                modelsHtml += `</td></tr>`;
+            }
+        }
+        
+        modelsHtml += '</tbody></table>';
+        document.getElementById('simpleModelsList').innerHTML = modelsHtml;
+        
+    } catch(e) {
+        console.error('Erreur:', e);
+        container.innerHTML = '<div class="error">❌ Erreur de chargement: ' + e.message + '</div>';
+    }
+}
+
+async function addProviderSimple() {
+    const name = document.getElementById('newProviderName')?.value.trim();
+    const url = document.getElementById('newProviderUrl')?.value.trim();
+    const apiKey = document.getElementById('newProviderKey')?.value;
+    
+    if (!name || !url) {
+        alert('Nom et URL requis');
+        return;
+    }
+    
+    const res = await fetch('/api/providers/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, url, api_key: apiKey })
+    });
+    const result = await res.json();
+    
+    if (result.success) {
+        alert('Provider ajouté');
+        closeModal('simpleConfigModal');
+        loadProvidersWithKeys();  // Rafraîchir la sidebar
+    } else {
+        alert('Erreur: ' + result.message);
+    }
+}
+
+async function editProviderKey(providerName) {
+    const newKey = prompt(`Nouvelle API key pour ${providerName}:`);
+    if (newKey !== null) {
+        const res = await fetch('/api/providers/update_api_key', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: providerName, api_key: newKey })
+        });
+        const result = await res.json();
+        if (result.success) {
+            alert('Clé mise à jour');
+            loadSimpleConfigContent();
+            loadProvidersWithKeys();
+        } else {
+            alert('Erreur: ' + result.message);
+        }
+    }
+}
+
+async function deleteProviderSimple(providerName) {
+    if (confirm(`Supprimer ${providerName} ?`)) {
+        const res = await fetch('/api/providers/delete', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: providerName })
+        });
+        const result = await res.json();
+        if (result.success) {
+            alert('Provider supprimé');
+            loadSimpleConfigContent();
+            loadProvidersWithKeys();
+        } else {
+            alert('Erreur: ' + result.message);
+        }
+    }
+}
+
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) modal.style.display = 'none';
+}
+
+document.getElementById('showConfigBtn')?.addEventListener('click', showConfigModal);
