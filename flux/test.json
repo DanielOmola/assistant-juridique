@@ -1,0 +1,110 @@
+{
+  "nom": "test",
+  "date_creation": "2026-04-19T23:24:56.452051",
+  "workflow": {
+    "nom": "test",
+    "workflow": {
+      "name": "Mon dossier",
+      "document": "",
+      "steps": [
+        {
+          "type": "analyse",
+          "name": "🔍 Analyser",
+          "config": {},
+          "result": null,
+          "status": "error"
+        },
+        {
+          "type": "conclusions",
+          "name": "⚖️ Conclusions",
+          "config": {},
+          "result": null,
+          "status": "error"
+        },
+        {
+          "type": "ameliorer",
+          "name": "✨ Améliorer",
+          "config": {},
+          "result": null,
+          "status": "error"
+        },
+        {
+          "type": "email",
+          "name": "📧 Email",
+          "config": {
+            "destinataire": "",
+            "objet": "",
+            "source": ""
+          },
+          "result": null,
+          "status": "error"
+        },
+        {
+          "type": "generer_prompt",
+          "name": "🎯 Prompt",
+          "config": {
+            "prompt_type": "",
+            "situation": ""
+          },
+          "result": null,
+          "status": "error"
+        }
+      ]
+    }
+  },
+  "document": "",
+  "steps": [
+    {
+      "id": 1776633736022,
+      "type": "analyse",
+      "name": "🔍 Analyser",
+      "config": {},
+      "status": "error",
+      "result": null,
+      "error": "Assistant non initialise"
+    },
+    {
+      "id": 1776633741373,
+      "type": "conclusions",
+      "name": "⚖️ Conclusions",
+      "config": {},
+      "status": "error",
+      "result": null,
+      "error": "Assistant non initialise"
+    },
+    {
+      "id": 1776633744938,
+      "type": "ameliorer",
+      "name": "✨ Améliorer",
+      "config": {},
+      "status": "error",
+      "result": null,
+      "error": "Assistant non initialise"
+    },
+    {
+      "id": 1776633749221,
+      "type": "email",
+      "name": "📧 Email",
+      "config": {
+        "destinataire": "",
+        "objet": "",
+        "source": ""
+      },
+      "status": "error",
+      "result": null,
+      "error": "Assistant non initialise"
+    },
+    {
+      "id": 1776633782235,
+      "type": "generer_prompt",
+      "name": "🎯 Prompt",
+      "config": {
+        "prompt_type": "",
+        "situation": ""
+      },
+      "status": "error",
+      "result": null,
+      "error": "'prompt_type'"
+    }
+  ]
+}

@@ -1,0 +1,79 @@
+{
+  "nom": "Mon dossier",
+  "date_creation": "2026-04-19T15:42:51.351564",
+  "date_execution": "2026-04-19T13:42:51.299Z",
+  "statut": "execute",
+  "workflow": {
+    "id": null,
+    "name": "Mon dossier",
+    "document": "Bonjour j'ai un dossier contre un mandataire judiciaire qui sollicite le dépaysement de l'affaire aussi de l'article 47 du CPC Merci de m'indiquer si c'est pertinent.",
+    "steps": [
+      {
+        "config": {},
+        "error": null,
+        "id": 1776606156703.6272,
+        "name": "🔍 Analyser",
+        "result": "❌ Erreur: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CaDEAFoKfM2EF36UzTLpm'}",
+        "status": "success",
+        "type": "analyse"
+      },
+      {
+        "config": {},
+        "error": null,
+        "id": 1776606156703.1604,
+        "name": "🧠 Arguments",
+        "result": "❌ Erreur: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CaDEAGU1GeBJy1okxpWrM'}",
+        "status": "success",
+        "type": "generer_arguments"
+      },
+      {
+        "config": {
+          "destinataire": "",
+          "objet": "",
+          "source": ""
+        },
+        "error": null,
+        "id": 1776606156703.9138,
+        "name": "📧 Email",
+        "result": "❌ Erreur: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CaDEAJDRaFmkVKUqVjrDT'}",
+        "status": "success",
+        "type": "email"
+      }
+    ]
+  },
+  "document": "Bonjour j'ai un dossier contre un mandataire judiciaire qui sollicite le dépaysement de l'affaire aussi de l'article 47 du CPC Merci de m'indiquer si c'est pertinent.",
+  "steps": [
+    {
+      "config": {},
+      "error": null,
+      "id": 1776606156703.6272,
+      "name": "🔍 Analyser",
+      "result": "❌ Erreur: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CaDEAFoKfM2EF36UzTLpm'}",
+      "status": "success",
+      "type": "analyse"
+    },
+    {
+      "config": {},
+      "error": null,
+      "id": 1776606156703.1604,
+      "name": "🧠 Arguments",
+      "result": "❌ Erreur: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CaDEAGU1GeBJy1okxpWrM'}",
+      "status": "success",
+      "type": "generer_arguments"
+    },
+    {
+      "config": {
+        "destinataire": "",
+        "objet": "",
+        "source": ""
+      },
+      "error": null,
+      "id": 1776606156703.9138,
+      "name": "📧 Email",
+      "result": "❌ Erreur: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CaDEAJDRaFmkVKUqVjrDT'}",
+      "status": "success",
+      "type": "email"
+    }
+  ],
+  "rapport_associe": "Mon dossier_rapport.txt"
+}

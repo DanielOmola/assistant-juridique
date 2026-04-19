@@ -1,0 +1,72 @@
+{
+  "nom": "dupont",
+  "date_creation": "2026-04-19T06:54:13.077915",
+  "workflow": {
+    "nom": "dupont",
+    "workflow": {
+      "name": "Mon dossier",
+      "document": "Monsieur Dupont a signé un contrat de location en janvier 2022.\n\nDepuis mars 2023, il ne paie plus ses loyers.\n\nLe propriétaire souhaite engager une procédure pour récupérer les loyers impayés et résilier le bail.\n",
+      "steps": [
+        {
+          "type": "analyse",
+          "name": "🔍 Analyser",
+          "config": {},
+          "result": null,
+          "status": "pending"
+        },
+        {
+          "type": "generer_arguments",
+          "name": "🧠 Arguments",
+          "config": {},
+          "result": null,
+          "status": "pending"
+        },
+        {
+          "type": "email",
+          "name": "📧 Email",
+          "config": {
+            "destinataire": "",
+            "objet": "",
+            "source": ""
+          },
+          "result": null,
+          "status": "pending"
+        }
+      ]
+    }
+  },
+  "document": "Monsieur Dupont a signé un contrat de location en janvier 2022.\n\nDepuis mars 2023, il ne paie plus ses loyers.\n\nLe propriétaire souhaite engager une procédure pour récupérer les loyers impayés et résilier le bail.\n",
+  "steps": [
+    {
+      "id": 1776574271373,
+      "type": "analyse",
+      "name": "🔍 Analyser",
+      "config": {},
+      "status": "pending",
+      "result": null,
+      "error": null
+    },
+    {
+      "id": 1776574292889,
+      "type": "generer_arguments",
+      "name": "🧠 Arguments",
+      "config": {},
+      "status": "pending",
+      "result": null,
+      "error": null
+    },
+    {
+      "id": 1776574313800,
+      "type": "email",
+      "name": "📧 Email",
+      "config": {
+        "destinataire": "",
+        "objet": "",
+        "source": ""
+      },
+      "status": "pending",
+      "result": null,
+      "error": null
+    }
+  ]
+}

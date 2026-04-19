@@ -116,3 +116,21 @@ recherche_nullites:
     8. CHECKLIST (pièces, actes, délais, précautions)
 
     Toutes sections obligatoires.
+
+
+redaction_conclusion:
+  description: |
+    Prompt d'aide à la recherche de nullités.
+  text: |
+    Cadre démissionne oct.2024, rétracte nov.2024 pour harcèlement. Acceptation employeur. Mails + attestations.
+  type_nullite: |
+    
+  prompt: |
+    Description : {{ text }}
+
+    Rédige des CONCLUSIONS JURIDIQUES structurées:
+    1. RAPPEL DES FAITS
+    2. ANALYSE JURIDIQUE
+    3. ARGUMENTS
+    4. CONCLUSION ET PRÉCONISATIONS
+    Toutes sections obligatoires.

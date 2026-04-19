@@ -13,18 +13,18 @@
         </header>
 
         <div class="layout">
-            <!-- SIDEBAR : Configuration et document source -->
+            <!-- SIDEBAR -->
             <aside class="sidebar">
                 <h3>⚙️ Configuration IA</h3>
                 <hr>
-                            
-            <hr>
-            <button id="showConfigBtn" class="success" style="width:100%">🔧 Gérer les providers</button>
+                
+                <button id="showConfigBtn" class="success" style="width:100%">🔧 Gérer les providers</button>
                 <hr>
+                
                 <label>Sélectionner Provider:</label>
-<select id="provider_select" onchange="loadModelsForProviderSelect()">
-    <option value="">Chargement...</option>
-</select>
+                <select id="provider_select" onchange="loadModelsForProviderSelect()">
+                    <option value="">Chargement...</option>
+                </select>
                 
                 <label>Modèle IA:</label>
                 <select id="model_select" disabled>
@@ -53,26 +53,21 @@
                 <button id="quitBtn" class="danger">❌ Quitter</button>
             </aside>
 
-            <!-- MAIN : Workflow unique -->
+            <!-- MAIN -->
             <main class="content">
                 <div class="workflow-container">
                     <div class="workflow-header">
                         <h2>🧠 Flux de travail juridique</h2>
 
-                            <!-- NOUVEAU SÉLECTEUR DE CONTEXTE -->
-    <div class="context-mode-selector">
-        <label>📎 Mode contexte :</label>
-        <select id="contextMode">
-            <option value="full">📚 Contexte complet (tous les résultats)</option>
-            <option value="last">📌 Dernier résultat uniquement</option>
-        </select>
-    </div>
-    
-                        <div class="workflow-actions">
-                            <button id="executeAllBtn" class="success">🔄 Exécuter tout</button>
-                            <button id="saveWorkflowBtn">💾 Sauvegarder</button>
-                            <button id="loadWorkflowBtn">📂 Charger</button>
+                        <div class="context-mode-selector">
+                            <label>📎 Mode contexte :</label>
+                            <select id="contextMode">
+                                <option value="full">📚 Contexte complet</option>
+                                <option value="last">📌 Dernier résultat uniquement</option>
+                            </select>
                         </div>
+
+
                     </div>
                     
                     <!-- État du dossier -->
@@ -80,17 +75,16 @@
                         <span>📁 Dossier actif: <strong id="dossier_name">Aucun document chargé</strong></span>
                     </div>
                     
-                    <!-- Liste des étapes du workflow -->
-                    <div id="workflow-steps" class="workflow-steps">
-                        <!-- Les étapes sont ajoutées dynamiquement -->
-                        <div class="empty-workflow">
-                            <p>✨ Aucune étape dans votre workflow</p>
-                            <p>Cliquez sur <strong>+ Ajouter une étape</strong> pour commencer</p>
+                    <!-- Chemins des dossiers -->
+                    <div class="paths-info" style="background:#f0f2f6; padding:8px 12px; border-radius:6px; font-size:0.75rem; color:#666">
+                        <div class="workflow-actions">
+                            <button id="gestionnaireFluxBtn" class="success">📁 Explorer les flux</button>
                         </div>
+
                     </div>
-                    
-                    <!-- Ajouter une nouvelle étape -->
-                    <div class="add-step">
+
+                                        <div class="add-step">
+                                            <button id="addStepBtn" class="success">➕ Ajouter cette étape</button>
                         <select id="step_type_select">
                             <option value="analyse">🔍 Analyser le document</option>
                             <option value="conclusions">⚖️ Générer des conclusions</option>
@@ -103,11 +97,39 @@
                             <option value="generer_prompt">🎯 Générer prompt</option>
                             <option value="appliquer_tampon">🖊️ Appliquer tampon</option>
                         </select>
-                        <button id="addStepBtn" class="success">➕ Ajouter cette étape</button>
                     </div>
+                    
+                    <!-- Liste des étapes -->
+                    <div id="workflow-steps" class="workflow-steps">
+                        <div class="empty-workflow">
+                            <p>✨ Aucune étape dans votre workflow</p>
+                            <p>Cliquez sur <strong>+ Ajouter une étape</strong> pour commencer</p>
+                        </div>
+                    </div>
+                    
+                                        <!-- <hr>
+                    <h4>💾 Actions</h4> -->
+
+                    <!-- <div style="display:flex; gap:10px; flex-wrap:wrap">
+                    </div> -->
+<!--                     
+                                                            <div class="workflow-actions">
+                            <button id="executeAllBtn" class="success">🔄 Exécuter tout</button>
+                        </div> -->
+
+                    <!-- Ajouter une étape -->
+
                 </div>
-                
-                <!-- Modal pour configurer une étape -->
+ 
+                    <div class="workflow-actions">
+                            <button id="executeAllBtn" class="success">🔄 Exécuter tout</button>
+                            <button onclick="sauvegarderFlux()" class="success">💾 Sauvegarder flux actuel</button>
+                            <span>📂 Flux: <span id="fluxPath">chargement...</span></span>
+                            <button onclick="sauvegarderRapportComplet()">📄 Sauvegarder rapport TXT</button>
+                            <span style="margin-left:20px">📄 Rapports: <span id="rapportsPath">chargement...</span></span>
+                        </div>
+
+                <!-- Modal étape -->
                 <div id="stepModal" class="modal">
                     <div class="modal-content">
                         <span class="close" onclick="closeStepModal()">&times;</span>

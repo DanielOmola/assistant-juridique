@@ -23,6 +23,18 @@ from utils.config_clients import LLM_Client
 from utils.db_manager import *
 from utils.db_manager import init_database
 
+import os
+import json
+from datetime import datetime
+from flask import send_file, send_from_directory
+
+# Créer les dossiers nécessaires
+FLUX_DIR = os.path.join(os.path.dirname(__file__), 'flux')
+RAPPORTS_DIR = os.path.join(os.path.dirname(__file__), 'rapports')
+os.makedirs(FLUX_DIR, exist_ok=True)
+os.makedirs(RAPPORTS_DIR, exist_ok=True)
+
+
 # Initialize database on startup
 init_database()
 app = Flask(__name__, static_folder="./static", template_folder="./templates")
@@ -350,6 +362,195 @@ def shutdown():
         raise RuntimeError('Not running with Werkzeug Server')
     func()
     return 'Server shutting down...'
+
+@app.route('/api/flux/save', methods=['POST'])
+def save_flux():
+    """Sauvegarder un flux (workflow complet)"""
+    data = request.json
+    nom_flux = data.get('nom', f"flux_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+    
+    # Nettoyer le nom du fichier
+    nom_fichier = nom_flux.replace(' ', '_').replace('/', '_') + '.json'
+    chemin = os.path.join(FLUX_DIR, nom_fichier)
+    
+    flux_data = {
+        "nom": nom_flux,
+        "date_creation": datetime.now().isoformat(),
+        "workflow": data.get('workflow'),
+        "document": data.get('document'),
+        "steps": data.get('steps')
+    }
+    
+    with open(chemin, 'w', encoding='utf-8') as f:
+        json.dump(flux_data, f, indent=2, ensure_ascii=False)
+    
+    return jsonify({
+        'success': True,
+        'message': f'Flux "{nom_flux}" sauvegardé',
+        'chemin': chemin,
+        'nom_fichier': nom_fichier
+    })
+
+@app.route('/api/rapports/save', methods=['POST'])
+def save_rapport():
+    """Sauvegarder un rapport (texte)"""
+    data = request.json
+    nom_rapport = data.get('nom', f"rapport_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+    
+    # Nettoyer le nom du fichier
+    nom_fichier = nom_rapport.replace(' ', '_').replace('/', '_') + '.txt'
+    chemin = os.path.join(RAPPORTS_DIR, nom_fichier)
+    
+    with open(chemin, 'w', encoding='utf-8') as f:
+        f.write(data.get('contenu', ''))
+    
+    return jsonify({
+        'success': True,
+        'message': f'Rapport "{nom_rapport}" sauvegardé',
+        'chemin': chemin,
+        'nom_fichier': nom_fichier
+    })
+
+@app.route('/api/flux/list', methods=['GET'])
+def list_flux():
+    """Lister tous les flux sauvegardés"""
+    flux_list = []
+    for fichier in os.listdir(FLUX_DIR):
+        if fichier.endswith('.json'):
+            chemin = os.path.join(FLUX_DIR, fichier)
+            with open(chemin, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            flux_list.append({
+                'nom': data.get('nom', fichier.replace('.json', '')),
+                'nom_fichier': fichier,
+                'date_creation': data.get('date_creation'),
+                'taille': os.path.getsize(chemin),
+                'chemin': chemin
+            })
+    # Trier par date décroissante
+    flux_list.sort(key=lambda x: x.get('date_creation', ''), reverse=True)
+    return jsonify(flux_list)
+
+@app.route('/api/rapports/list', methods=['GET'])
+def list_rapports():
+    """Lister tous les rapports sauvegardés"""
+    rapports_list = []
+    for fichier in os.listdir(RAPPORTS_DIR):
+        if fichier.endswith('.txt'):
+            chemin = os.path.join(RAPPORTS_DIR, fichier)
+            stat = os.stat(chemin)
+            rapports_list.append({
+                'nom': fichier.replace('.txt', ''),
+                'nom_fichier': fichier,
+                'date_modification': datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                'taille': stat.st_size,
+                'chemin': chemin
+            })
+    # Trier par date décroissante
+    rapports_list.sort(key=lambda x: x.get('date_modification', ''), reverse=True)
+    return jsonify(rapports_list)
+
+@app.route('/api/flux/load/<nom_fichier>', methods=['GET'])
+def load_flux(nom_fichier):
+    """Charger un flux spécifique"""
+    chemin = os.path.join(FLUX_DIR, nom_fichier)
+    if not os.path.exists(chemin):
+        return jsonify({'success': False, 'error': 'Flux non trouvé'})
+    
+    with open(chemin, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    return jsonify({'success': True, 'data': data})
+
+@app.route('/api/flux/delete/<nom_fichier>', methods=['DELETE'])
+def delete_flux(nom_fichier):
+    """Supprimer un flux"""
+    chemin = os.path.join(FLUX_DIR, nom_fichier)
+    if os.path.exists(chemin):
+        os.remove(chemin)
+        return jsonify({'success': True, 'message': 'Flux supprimé'})
+    return jsonify({'success': False, 'error': 'Flux non trouvé'})
+
+@app.route('/api/rapports/view/<nom_fichier>', methods=['GET'])
+def view_rapport(nom_fichier):
+    """Afficher un rapport"""
+    chemin = os.path.join(RAPPORTS_DIR, nom_fichier)
+    if not os.path.exists(chemin):
+        return jsonify({'error': 'Rapport non trouvé'}), 404
+    
+    with open(chemin, 'r', encoding='utf-8') as f:
+        contenu = f.read()
+    return jsonify({'contenu': contenu, 'nom': nom_fichier})
+
+@app.route('/api/rapports/download/<nom_fichier>', methods=['GET'])
+def download_rapport(nom_fichier):
+    """Télécharger un rapport"""
+    return send_from_directory(RAPPORTS_DIR, nom_fichier, as_attachment=True)
+
+
+@app.route('/api/flux/auto_save', methods=['POST'])
+def auto_save_flux():
+    """Sauvegarde automatique d'un flux exécuté"""
+    data = request.json
+    nom_flux = data.get('nom', f"flux_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+    
+    # Nettoyer le nom
+    nom_fichier = nom_flux.replace(' ', '_').replace('/', '_') + '.json'
+    chemin = os.path.join(FLUX_DIR, nom_fichier)
+    
+    # Sauvegarder le rapport associé
+    rapport_contenu = data.get('rapport_contenu', '')
+    if rapport_contenu:
+        rapport_nom = f"{nom_flux}_rapport.txt"
+        rapport_chemin = os.path.join(RAPPORTS_DIR, rapport_nom)
+        with open(rapport_chemin, 'w', encoding='utf-8') as f:
+            f.write(rapport_contenu)
+    
+    flux_data = {
+        "nom": nom_flux,
+        "date_creation": datetime.now().isoformat(),
+        "date_execution": data.get('date_execution', datetime.now().isoformat()),
+        "statut": "execute",
+        "workflow": data.get('workflow'),
+        "document": data.get('document'),
+        "steps": data.get('steps'),
+        "rapport_associe": rapport_nom if rapport_contenu else None
+    }
+    
+    with open(chemin, 'w', encoding='utf-8') as f:
+        json.dump(flux_data, f, indent=2, ensure_ascii=False)
+    
+    return jsonify({
+        'success': True,
+        'message': f'Flux "{nom_flux}" sauvegardé',
+        'nom_fichier': nom_fichier,
+        'rapport': rapport_nom if rapport_contenu else None
+    })
+
+@app.route('/api/flux/check_rapport/<nom_flux>', methods=['GET'])
+def check_rapport_associe(nom_flux):
+    """Vérifier si un flux a un rapport associé"""
+    flux_fichier = nom_flux if nom_flux.endswith('.json') else nom_flux + '.json'
+    chemin = os.path.join(FLUX_DIR, flux_fichier)
+    
+    if not os.path.exists(chemin):
+        return jsonify({'success': False, 'error': 'Flux non trouvé'})
+    
+    with open(chemin, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    
+    rapport = data.get('rapport_associe')
+    if rapport and os.path.exists(os.path.join(RAPPORTS_DIR, rapport)):
+        with open(os.path.join(RAPPORTS_DIR, rapport), 'r', encoding='utf-8') as f:
+            contenu = f.read()
+        return jsonify({
+            'success': True,
+            'a_rapport': True,
+            'rapport_nom': rapport,
+            'contenu': contenu
+        })
+    
+    return jsonify({'success': True, 'a_rapport': False})
+
 
 if __name__ == '__main__':
     import webbrowser

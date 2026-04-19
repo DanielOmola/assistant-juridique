@@ -1,0 +1,26 @@
+================================================================================
+📋 RAPPORT COMPLET DU WORKFLOW JURIDIQUE
+================================================================================
+📅 Date: 19/04/2026 15:42:51
+📁 Dossier: Mon dossier
+📄 Document source: Mon dossier
+
+────────────────────────────────────────────────────────────────────────────────
+📄 DOCUMENT SOURCE
+────────────────────────────────────────────────────────────────────────────────
+Bonjour j'ai un dossier contre un mandataire judiciaire qui sollicite le dépaysement de l'affaire aussi de l'article 47 du CPC Merci de m'indiquer si c'est pertinent.
+
+────────────────────────────────────────────────────────────────────────────────
+[1] 🔍 Analyser (✅ RÉUSSI)
+────────────────────────────────────────────────────────────────────────────────
+❌ Erreur: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CaDEAFoKfM2EF36UzTLpm'}
+
+────────────────────────────────────────────────────────────────────────────────
+[2] 🧠 Arguments (✅ RÉUSSI)
+────────────────────────────────────────────────────────────────────────────────
+❌ Erreur: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CaDEAGU1GeBJy1okxpWrM'}
+
+────────────────────────────────────────────────────────────────────────────────
+[3] 📧 Email (✅ RÉUSSI)
+────────────────────────────────────────────────────────────────────────────────
+❌ Erreur: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CaDEAJDRaFmkVKUqVjrDT'}

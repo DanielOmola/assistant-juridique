@@ -1,0 +1,50 @@
+================================================================================
+📋 RAPPORT COMPLET DU WORKFLOW JURIDIQUE
+================================================================================
+📅 Date: 19/04/2026 07:24:50
+📁 Dossier: améliorer
+📄 Document source: exemple_analyse.docx
+
+────────────────────────────────────────────────────────────────────────────────
+📄 DOCUMENT SOURCE
+────────────────────────────────────────────────────────────────────────────────
+Un client affirme avoir été licencié sans cause réelle et sérieuse.
+
+Il indique ne pas avoir reçu d’avertissement préalable.
+
+L’employeur évoque une insuffisance professionnelle.
+
+────────────────────────────────────────────────────────────────────────────────
+[1] 🔍 Analyser (✅ RÉUSSI)
+────────────────────────────────────────────────────────────────────────────────
+**RÉSUMÉ**
+Le client affirme avoir été licencié sans cause réelle et sérieuse, alors que l'employeur invoque une insuffisance professionnelle. Le client indique ne pas avoir reçu d'avertissement préalable, ce qui pourrait constituer une irrégularité dans la procédure de licenciement. La situation nécessite une analyse juridique approfondie pour déterminer les droits et les obligations des parties impliquées. Le client pourrait avoir des droits à des indemnités ou à une réintégration. L'employeur doit prouver que le licenciement était justifié.
+
+**POINTS CLÉS**
+* Le client affirme avoir été licencié sans cause réelle et sérieuse
+* L'employeur invoque une insuffisance professionnelle
+* Le client n'a pas reçu d'avertissement préalable
+* La procédure de licenciement pourrait être irrégulière
+* Le client pourrait avoir des droits à des indemnités ou à une réintégration
+* L'employeur doit prouver que le licenciement était justifié
+
+**RISQUES JURIDIQUES**
+* Le licenciement sans cause réelle et sérieuse pourrait être considéré comme abusif, ce qui pourrait entraîner des conséquences juridiques pour l'employeur, notamment des indemnités pour le client
+* L'absence d'avertissement préalable pourrait être considérée comme une irrégularité dans la procédure de licenciement, ce qui pourrait entraîner l'annulation du licenciement
+* L'employeur pourrait avoir des difficultés à prouver que le licenciement était justifié, ce qui pourrait entraîner des conséquences négatives pour l'entreprise
+
+**RECOMMANDATIONS**
+* Le client devrait consulter un avocat pour déterminer les droits et les obligations des parties impliquées
+* L'employeur devrait fournir des preuves de l'insuffisance professionnelle du client pour justifier le licenciement
+* Le client devrait demander des indemnités ou une réintégration si le licenciement est considéré comme abusif
+* L'employeur devrait réexaminer la procédure de licenciement pour s'assurer qu'elle est régulière et conforme aux lois et réglementations en vigueur.
+
+────────────────────────────────────────────────────────────────────────────────
+[2] 🧠 Arguments (✅ RÉUSSI)
+────────────────────────────────────────────────────────────────────────────────
+❌ Erreur: Error code: 429 - {'error': {'message': 'Rate limit reached for model `llama-3.3-70b-versatile` in organization `org_01kneqetn3fmsan0s8vp3fjr1p` service tier `on_demand` on tokens per day (TPD): Limit 100000, Used 96243, Requested 5283. Please try again in 21m58.464s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}
+
+────────────────────────────────────────────────────────────────────────────────
+[3] 📧 Email (✅ RÉUSSI)
+────────────────────────────────────────────────────────────────────────────────
+❌ Erreur: Error code: 429 - {'error': {'message': 'Rate limit reached for model `llama-3.3-70b-versatile` in organization `org_01kneqetn3fmsan0s8vp3fjr1p` service tier `on_demand` on tokens per day (TPD): Limit 100000, Used 96243, Requested 4486. Please try again in 10m29.856s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}

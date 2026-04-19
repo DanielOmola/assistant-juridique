@@ -22,13 +22,13 @@ def preparer_conclusion(texte: str, llm_client) -> str:
     logger.debug(f"Texte source: {texte_preview}...")
     
     prompt = f"""Rédige des CONCLUSIONS JURIDIQUES structurées:
+                    I. RAPPEL DES FAITS
+                    II. ANALYSE JURIDIQUE
+                    III. ARGUMENTS
+                    IV. CONCLUSION ET PRÉCONISATIONS
 
-I. RAPPEL DES FAITS
-II. ANALYSE JURIDIQUE
-III. ARGUMENTS
-IV. CONCLUSION ET PRÉCONISATIONS
-
-Dossier: {texte[:6000]}"""
+                    Dossier: {texte[:6000]}
+            """
 
     system_prompt = "Tu rédiges des conclusions juridiques claires, structurées et argumentées en droit français."
     # modele_actif = llm_client.modele_actif
