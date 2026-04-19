@@ -36,6 +36,11 @@ class LLM_Client:
             elif self.provider == "google":
                 from google import genai
                 return genai.Client(api_key=self.api_key)
+            
+            elif self.provider == "deepseek":
+                from openai import OpenAI
+                # return genai.Client(api_key=self.api_key)
+                return OpenAI(api_key=self.api_key, base_url="https://api.deepseek.com")
                 
             else:
                 raise ValueError(f"Provider non supporté: {self.provider}")
@@ -109,6 +114,27 @@ class LLM_Client:
                     "content": response.text,
                     "tokens": 0,
                     "provider": "google"
+                }
+
+
+            elif self.provider == "deepseek":
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt}
+                ]
+                
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    temperature=self.temperature,
+                    max_tokens=self.max_tokens,
+                    stream=False
+                )
+                
+                return {
+                    "content": response.choices[0].message.content,
+                    "tokens": response.usage.total_tokens,
+                    "provider": "deepseek"
                 }
 
         except Exception as e:

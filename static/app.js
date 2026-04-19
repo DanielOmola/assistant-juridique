@@ -775,13 +775,13 @@ async function loadSimpleConfigContent() {
     if (!container) return;
     
     try {
-        // 1. Charger les providers
+        // Charger les providers
         const providersRes = await fetch('/api/providers/list');
         const providers = await providersRes.json();
         
         let html = '<h4>📋 Providers existants</h4>';
         html += '<table style="width:100%; margin-bottom:20px; border-collapse:collapse">';
-        html += '<thead><tr style="background:#f0f2f6"><th>Nom</th><th>URL</th><th>API Key</th><th>Action</th></tr></thead><tbody>';
+        html += '<thead><tr style="background:#f0f2f6"><th>Nom</th><th>URL</th><th>API Key</th><th>Actions</th></tr></thead><tbody>';
         
         for (const p of providers) {
             const maskedKey = p.api_key ? '•••' + p.api_key.slice(-6) : '❌ Non configurée';
@@ -792,6 +792,7 @@ async function loadSimpleConfigContent() {
                     <td style="padding:8px">${maskedKey}</td>
                     <td style="padding:8px">
                         <button onclick="editProviderKey('${p.name}')" style="margin:2px">✏️ Clé</button>
+                        <button onclick="showAddModelForm('${p.name}')" style="margin:2px">➕ Modèle</button>
                         <button onclick="deleteProviderSimple('${p.name}')" class="danger" style="margin:2px">🗑️</button>
                     </td>
                 </tr>
@@ -799,29 +800,28 @@ async function loadSimpleConfigContent() {
         }
         html += '</tbody></table>';
         
-        // 2. Formulaire pour ajouter un provider
+        // Formulaire pour ajouter un provider
         html += '<hr><h4>➕ Ajouter un provider</h4>';
         html += '<div style="display:flex; gap:10px; flex-wrap:wrap">';
         html += '<input type="text" id="newProviderName" placeholder="Nom (ex: deepseek)" style="flex:1">';
         html += '<input type="text" id="newProviderUrl" placeholder="URL API" style="flex:2">';
         html += '<input type="password" id="newProviderKey" placeholder="API Key (optionnel)" style="flex:1">';
-        html += '<button onclick="addProviderSimple()" class="success">➕ Ajouter</button>';
+        html += '<button onclick="addProviderSimple()" class="success">➕ Ajouter provider</button>';
         html += '</div>';
         
-        // 3. Afficher les modèles disponibles (depuis les providers avec clé)
+        // Modèles disponibles
         html += '<hr><h4>📚 Modèles disponibles</h4>';
         html += '<div id="simpleModelsList">Chargement...</div>';
         
         container.innerHTML = html;
         
-        // 4. Charger les modèles disponibles via /api/providers/with_keys
+        // Charger les modèles
         const modelsRes = await fetch('/api/providers/with_keys');
         const providersWithKeys = await modelsRes.json();
         
-        let modelsHtml = '<table style="width:100%; border-collapse:collapse"><thead><tr style="background:#f0f2f6"><th>Provider</th><th>Modèles disponibles</th></tr></thead><tbody>';
+        let modelsHtml = '<table style="width:100%; border-collapse:collapse"><thead><tr style="background:#f0f2f6"><th>Provider</th><th>Modèles</th></tr></thead><tbody>';
         
         for (const p of providersWithKeys) {
-            // Récupérer les modèles pour ce provider
             const modelRes = await fetch(`/api/models/list/${p.name}`);
             const models = await modelRes.json();
             
@@ -912,3 +912,66 @@ function closeModal(modalId) {
 }
 
 document.getElementById('showConfigBtn')?.addEventListener('click', showConfigModal);
+
+// Afficher le formulaire pour ajouter un modèle
+function showAddModelForm(providerName) {
+    const modal = document.getElementById('simpleConfigModal');
+    const container = document.getElementById('simpleConfigContent');
+    
+    if (!modal || !container) return;
+    
+    const formHtml = `
+        <h3>➕ Ajouter un modèle pour ${providerName}</h3>
+        <div style="margin-top: 15px">
+            <label>Clé modèle:</label>
+            <input type="text" id="newModelKey" placeholder="ex: gemini-2.0-flash" style="width:100%; margin-bottom:10px">
+            
+            <label>Nom affiché:</label>
+            <input type="text" id="newModelDisplayName" placeholder="ex: Gemini 2.0 Flash" style="width:100%; margin-bottom:10px">
+            
+            <label>Contexte (tokens):</label>
+            <input type="number" id="newModelContext" placeholder="ex: 1048576" style="width:100%; margin-bottom:10px">
+            
+            <div style="display:flex; gap:10px; margin-top:15px">
+                <button onclick="addModelToProvider('${providerName}')" class="success">✅ Ajouter</button>
+                <button onclick="loadSimpleConfigContent()" class="danger">Annuler</button>
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = formHtml;
+}
+
+// Ajouter un modèle à un provider
+async function addModelToProvider(providerName) {
+    const modelKey = document.getElementById('newModelKey')?.value.trim();
+    const displayName = document.getElementById('newModelDisplayName')?.value.trim();
+    const contextLength = parseInt(document.getElementById('newModelContext')?.value);
+    
+    if (!modelKey || !displayName || !contextLength) {
+        alert('Tous les champs sont requis');
+        return;
+    }
+    
+    const res = await fetch('/api/models/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            provider_name: providerName,
+            model_key: modelKey,
+            display_name: displayName,
+            context_length: contextLength
+        })
+    });
+    
+    const result = await res.json();
+    
+    if (result.success) {
+        alert(`✅ Modèle ${displayName} ajouté avec succès`);
+        // Rafraîchir la vue
+        loadSimpleConfigContent();
+        loadProvidersWithKeys();
+    } else {
+        alert('❌ Erreur: ' + result.message);
+    }
+}
